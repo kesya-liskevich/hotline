@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+*.db
+*.sqlite
+*.sqlite3
+service-account.json
+google-drive-oauth-client.json
+google-drive-token.json
+bot.log
+bot.pid

@@ -1,0 +1,2 @@
+"""Hotline festival registration bot."""
+

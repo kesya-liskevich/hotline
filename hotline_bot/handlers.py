@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import date, datetime
 import re
+from datetime import date, datetime
+from pathlib import Path
 
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from hotline_bot.config import Settings
 from hotline_bot.google_services import DriveClient, SheetsClient
@@ -28,11 +29,12 @@ from hotline_bot.storage import RegistrationRepository
 WELCOME_TEXT = (
     "Привет, вы на «Горячей линии» роллерблейдинга! Это бот для регистрации.\n\n"
     "Здесь можно:\n"
-    "— зарегистрироваться на соревнования (запись открыта);\n"
+    "— зарегистрироваться на соревнования (форма открыта);\n"
     "— записаться на мастер-классы/лекции/кино (форма скоро откроется);\n"
     "— узнать программу и расписание фестиваля.\n\n"
     "Выбирай действие ниже:"
 )
+WELCOME_IMAGE_PATH = Path(__file__).resolve().parent.parent / "assets" / "welcome.png"
 
 
 class CompetitionForm(StatesGroup):
@@ -94,7 +96,7 @@ def build_router(
     @router.message(Command("start"))
     async def start(message: Message, state: FSMContext) -> None:
         await state.clear()
-        await message.answer(WELCOME_TEXT, reply_markup=main_menu())
+        await _send_welcome(message)
 
     @router.message(Command("id"))
     async def show_id(message: Message) -> None:
@@ -103,7 +105,7 @@ def build_router(
     @router.callback_query(F.data == "menu")
     async def menu(callback: CallbackQuery, state: FSMContext) -> None:
         await state.clear()
-        await callback.message.answer(WELCOME_TEXT, reply_markup=main_menu())
+        await _send_welcome(callback.message)
         await callback.answer()
 
     @router.callback_query(F.data == "soon")
@@ -429,6 +431,17 @@ def build_router(
         await message.answer(f"Отправлено сообщений: {sent}")
 
     return router
+
+
+async def _send_welcome(message: Message) -> None:
+    if WELCOME_IMAGE_PATH.exists():
+        await message.answer_photo(
+            FSInputFile(WELCOME_IMAGE_PATH),
+            caption=WELCOME_TEXT,
+            reply_markup=main_menu(),
+        )
+        return
+    await message.answer(WELCOME_TEXT, reply_markup=main_menu())
 
 
 async def _ask_adult_consent(message: Message, settings: Settings) -> None:

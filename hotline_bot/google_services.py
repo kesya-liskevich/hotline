@@ -181,7 +181,10 @@ class GoogleDriveClient:
             credentials = Credentials.from_authorized_user_file(str(oauth_token), self.SCOPES)
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
-                oauth_token.write_text(credentials.to_json(), encoding="utf-8")
+                try:
+                    oauth_token.write_text(credentials.to_json(), encoding="utf-8")
+                except OSError as exc:
+                    print(f"Could not persist refreshed Google Drive token: {exc}")
             return credentials
 
         from google.oauth2 import service_account

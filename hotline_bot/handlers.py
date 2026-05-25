@@ -435,12 +435,7 @@ def build_router(
 
 async def _send_welcome(message: Message) -> None:
     if WELCOME_IMAGE_PATH.exists():
-        await message.answer_photo(
-            FSInputFile(WELCOME_IMAGE_PATH),
-            caption=WELCOME_TEXT,
-            reply_markup=main_menu(),
-        )
-        return
+        await message.answer_photo(FSInputFile(WELCOME_IMAGE_PATH))
     await message.answer(WELCOME_TEXT, reply_markup=main_menu())
 
 

@@ -70,11 +70,14 @@ class RegistrationTest(unittest.TestCase):
             self.assertIn("PRO: мужчины: 1", stats)
             self.assertIn("Street + Park: 1", stats)
 
-    def test_program_text_has_only_street_and_park(self) -> None:
+    def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()
 
-        self.assertIn("Street и Park", text)
-        self.assertIn("Дети до 16 лет", text)
+        self.assertIn("ПРОГРАММА ФЕСТИВАЛЯ «ГОРЯЧАЯ ЛИНИЯ»", text)
+        self.assertIn("8 июня, понедельник, 18:00", text)
+        self.assertIn("12 июня, пятница — Квалификации", text)
+        self.assertIn("14 июня, воскресенье — Финалы Park", text)
+        self.assertIn("Eazy Money", text)
         self.assertNotIn("Дети до 18 лет", text)
         self.assertNotIn("Air", text)
 

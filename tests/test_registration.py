@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from hotline_bot.models import Registration, RegistrationStatus
+from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, program_text
 from hotline_bot.storage import RegistrationRepository
 
@@ -69,6 +69,27 @@ class RegistrationTest(unittest.TestCase):
             self.assertIn("Подтвержденных заявок: 1", stats)
             self.assertIn("PRO: мужчины: 1", stats)
             self.assertIn("Street + Park: 1", stats)
+
+    def test_repository_saves_workshop_registration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = RegistrationRepository(str(Path(tmpdir) / "hotline.sqlite3"))
+            registration = WorkshopRegistration(
+                telegram_id=123,
+                telegram_username="skater",
+                workshop_id="mon_fsk_aggressive",
+                workshop_title="Как подготовить своё катание от FSK к агрессивным роликам",
+                workshop_date="8 июня, понедельник, 18:00",
+                full_name="Иван Иванов",
+                phone="+79990000000",
+                skating_type="ФСК",
+            )
+
+            repo.save_workshop(registration)
+            saved = repo.list_workshops_by_user(123)
+
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0].workshop_id, "mon_fsk_aggressive")
+            self.assertEqual(saved[0].skating_type, "ФСК")
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

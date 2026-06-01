@@ -4,12 +4,15 @@ import tempfile
 from pathlib import Path
 from typing import Protocol
 
-from hotline_bot.models import Registration
-from hotline_bot.storage import HEADERS
+from hotline_bot.models import Registration, WorkshopRegistration
+from hotline_bot.storage import HEADERS, WORKSHOP_HEADERS
 
 
 class SheetsClient(Protocol):
     def append_registration(self, registration: Registration) -> None:
+        ...
+
+    def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
         ...
 
     def update_registration(self, registration: Registration) -> None:
@@ -32,6 +35,9 @@ class DriveClient(Protocol):
 
 class NullSheetsClient:
     def append_registration(self, registration: Registration) -> None:
+        return None
+
+    def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
         return None
 
     def update_registration(self, registration: Registration) -> None:
@@ -109,6 +115,15 @@ class GoogleSheetsClient:
                 body=body,
             ).execute()
 
+    def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range="workshops!A:M",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [registration.as_row()]},
+        ).execute()
+
     def update_registration(self, registration: Registration) -> None:
         # Append-only history is safer for the first MVP. The latest row by
         # registration_id/status is the source of truth for manual reporting.
@@ -125,7 +140,7 @@ class GoogleSheetsClient:
         }
         missing = [
             title
-            for title in ("registrations_all", "competitions", "summary")
+            for title in ("registrations_all", "competitions", "summary", "workshops")
             if title not in existing_titles
         ]
         if missing:
@@ -145,6 +160,12 @@ class GoogleSheetsClient:
                 valueInputOption="RAW",
                 body={"values": [HEADERS]},
             ).execute()
+        self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range="workshops!A1:M1",
+            valueInputOption="RAW",
+            body={"values": [WORKSHOP_HEADERS]},
+        ).execute()
 
 
 class GoogleDriveClient:

@@ -83,3 +83,51 @@ class Registration:
             f"Спонсоры: {self.sponsors or 'нет / не указаны'}"
             f"{review}"
         )
+
+
+@dataclass
+class WorkshopRegistration:
+    telegram_id: int
+    telegram_username: str | None = None
+    registration_id: str = field(default_factory=lambda: uuid4().hex)
+    workshop_id: str = ""
+    workshop_title: str = ""
+    workshop_date: str = ""
+    full_name: str = ""
+    phone: str = ""
+    skating_type: str = ""
+    status: RegistrationStatus = RegistrationStatus.SUBMITTED
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def mark_cancelled(self) -> None:
+        self.status = RegistrationStatus.CANCELLED
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def as_row(self) -> list[str]:
+        return [
+            self.registration_id,
+            str(self.telegram_id),
+            self.telegram_username or "",
+            self.full_name,
+            self.phone,
+            "workshop",
+            self.workshop_id,
+            self.workshop_title,
+            self.workshop_date,
+            self.skating_type,
+            self.status.value,
+            self.created_at,
+            self.updated_at,
+        ]
+
+    def summary(self) -> str:
+        skating = f"\nФСК или агрессив: {self.skating_type}" if self.skating_type else ""
+        return (
+            "Запись на мастер-класс:\n\n"
+            f"{self.workshop_title}\n"
+            f"{self.workshop_date}\n\n"
+            f"ФИО: {self.full_name}\n"
+            f"Телефон: {self.phone}"
+            f"{skating}"
+        )

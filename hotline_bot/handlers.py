@@ -20,9 +20,18 @@ from hotline_bot.keyboards import (
     main_menu,
     registrations_keyboard,
     rules_ack_keyboard,
+    skating_type_keyboard,
+    workshops_keyboard,
 )
-from hotline_bot.models import Registration, RegistrationStatus
-from hotline_bot.program import CATEGORY_KIDS, category_help_text, discipline_help_text, program_text
+from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
+from hotline_bot.program import (
+    WORKSHOPS,
+    Workshop,
+    CATEGORY_KIDS,
+    category_help_text,
+    discipline_help_text,
+    program_text,
+)
 from hotline_bot.storage import RegistrationRepository
 
 
@@ -30,7 +39,7 @@ WELCOME_TEXT = (
     "Привет, вы на «Горячей линии» роллерблейдинга! Это бот для регистрации.\n\n"
     "Здесь можно:\n"
     "— зарегистрироваться на соревнования (форма открыта);\n"
-    "— записаться на мастер-классы/лекции/кино (форма скоро откроется);\n"
+    "— записаться на мастер-классы/лекции (форма открыта);\n"
     "— узнать программу и расписание фестиваля.\n\n"
     "Выбирай действие ниже:"
 )
@@ -50,6 +59,12 @@ class CompetitionForm(StatesGroup):
     sponsors = State()
     rules = State()
     confirm = State()
+
+
+class WorkshopForm(StatesGroup):
+    full_name = State()
+    phone = State()
+    skating_type = State()
 
 
 EDIT_PROMPTS = {
@@ -114,6 +129,64 @@ def build_router(
             "Форма записи на мастер-классы, лекции и кино скоро откроется. "
             "Сейчас доступна регистрация на соревнования."
         )
+        await callback.answer()
+
+    @router.callback_query(F.data == "workshop:start")
+    async def workshop_start(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.clear()
+        await callback.message.answer(
+            "Выберите мастер-класс или лекцию",
+            reply_markup=workshops_keyboard(),
+        )
+        await callback.answer()
+
+    @router.callback_query(F.data.startswith("workshop:select:"))
+    async def workshop_select(callback: CallbackQuery, state: FSMContext) -> None:
+        workshop_id = callback.data.rsplit(":", 1)[1]
+        workshop = _workshop_by_id(workshop_id)
+        if workshop is None:
+            await callback.answer("Мастер-класс не найден", show_alert=True)
+            return
+        await state.clear()
+        await state.update_data(
+            telegram_id=callback.from_user.id,
+            telegram_username=callback.from_user.username,
+            workshop_id=workshop.workshop_id,
+            workshop_title=workshop.title,
+            workshop_date=workshop.date_text,
+            workshop_asks_skating_type=workshop.asks_skating_type,
+        )
+        await callback.message.answer(
+            f"{workshop.title}\n{workshop.date_text}\n\nВведите ФИО"
+        )
+        await state.set_state(WorkshopForm.full_name)
+        await callback.answer()
+
+    @router.message(WorkshopForm.full_name)
+    async def workshop_full_name(message: Message, state: FSMContext) -> None:
+        await state.update_data(full_name=(message.text or "").strip())
+        await message.answer("Введите телефон в формате +7XXXXXXXXXX")
+        await state.set_state(WorkshopForm.phone)
+
+    @router.message(WorkshopForm.phone)
+    async def workshop_phone(message: Message, state: FSMContext) -> None:
+        phone_value = (message.text or "").strip()
+        if not _is_valid_phone(phone_value):
+            await message.answer("Введите телефон в формате +7XXXXXXXXXX")
+            return
+        await state.update_data(phone=phone_value)
+        data = await state.get_data()
+        if data.get("workshop_asks_skating_type"):
+            await message.answer("Выберите: ФСК или агрессив", reply_markup=skating_type_keyboard())
+            await state.set_state(WorkshopForm.skating_type)
+            return
+        await _save_workshop_registration(message, state, repo, sheets)
+
+    @router.callback_query(WorkshopForm.skating_type, F.data.startswith("workshop:skating:"))
+    async def workshop_skating_type(callback: CallbackQuery, state: FSMContext) -> None:
+        skating_type = callback.data.rsplit(":", 1)[1]
+        await state.update_data(skating_type=skating_type)
+        await _save_workshop_registration(callback.message, state, repo, sheets)
         await callback.answer()
 
     @router.callback_query(F.data == "program")
@@ -484,13 +557,54 @@ async def _send_registrations(
         item for item in repo.list_by_user(user_id)
         if item.status != RegistrationStatus.CANCELLED
     ]
-    if not registrations:
+    workshop_registrations = [
+        item for item in repo.list_workshops_by_user(user_id)
+        if item.status != RegistrationStatus.CANCELLED
+    ]
+    if not registrations and not workshop_registrations:
         await message.answer("У вас пока нет активных заявок.", reply_markup=main_menu())
         return
-    text = "\n\n".join(item.summary() for item in registrations)
+    items = [item.summary() for item in registrations]
+    items.extend(item.summary() for item in workshop_registrations)
+    text = "\n\n".join(items)
     await message.answer(
         text,
         reply_markup=registrations_keyboard([item.registration_id for item in registrations]),
+    )
+
+
+def _workshop_by_id(workshop_id: str) -> Workshop | None:
+    return next((item for item in WORKSHOPS if item.workshop_id == workshop_id), None)
+
+
+def _workshop_from_state(data: dict) -> WorkshopRegistration:
+    return WorkshopRegistration(
+        telegram_id=data["telegram_id"],
+        telegram_username=data.get("telegram_username"),
+        workshop_id=data.get("workshop_id", ""),
+        workshop_title=data.get("workshop_title", ""),
+        workshop_date=data.get("workshop_date", ""),
+        full_name=data.get("full_name", ""),
+        phone=data.get("phone", ""),
+        skating_type=data.get("skating_type", ""),
+    )
+
+
+async def _save_workshop_registration(
+    message: Message,
+    state: FSMContext,
+    repo: RegistrationRepository,
+    sheets: SheetsClient,
+) -> None:
+    registration = _workshop_from_state(await state.get_data())
+    repo.save_workshop(registration)
+    sheets.append_workshop_registration(registration)
+    await state.clear()
+    await message.answer(
+        "Спасибо за запись! Вы в списке участников мастер-класса.\n\n"
+        f"{registration.workshop_title}\n"
+        f"{registration.workshop_date}",
+        reply_markup=main_menu(),
     )
 
 

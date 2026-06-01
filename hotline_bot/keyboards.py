@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from hotline_bot.program import CATEGORIES, DISCIPLINES, CATEGORY_KIDS
+from hotline_bot.program import CATEGORIES, DISCIPLINES, WORKSHOPS, CATEGORY_KIDS
 
 
 def main_menu() -> InlineKeyboardMarkup:
@@ -10,7 +10,7 @@ def main_menu() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="Регистрация на соревнования", callback_data="competition:start")],
             [InlineKeyboardButton(text="Мои регистрации", callback_data="registrations")],
-            [InlineKeyboardButton(text="Запись на мастер-класс/лекцию (скоро)", callback_data="soon")],
+            [InlineKeyboardButton(text="Запись на мастер-класс/лекцию", callback_data="workshop:start")],
             [InlineKeyboardButton(text="Программа и расписание", callback_data="program")],
         ]
     )
@@ -79,3 +79,21 @@ def registrations_keyboard(registration_ids: list[str]) -> InlineKeyboardMarkup:
     ]
     rows.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def workshops_keyboard() -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(text=workshop.title, callback_data=f"workshop:select:{workshop.workshop_id}")]
+        for workshop in WORKSHOPS
+    ]
+    rows.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def skating_type_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="ФСК", callback_data="workshop:skating:ФСК")],
+            [InlineKeyboardButton(text="Агрессив", callback_data="workshop:skating:Агрессив")],
+        ]
+    )

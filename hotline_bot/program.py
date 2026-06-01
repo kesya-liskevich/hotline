@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 DISCIPLINE_STREET = "Street"
 DISCIPLINE_PARK = "Park"
 DISCIPLINE_BOTH = "Street + Park"
@@ -83,6 +85,61 @@ PROGRAM_TEXT = (
 
 DISCIPLINES = (DISCIPLINE_STREET, DISCIPLINE_PARK, DISCIPLINE_BOTH)
 CATEGORIES = (CATEGORY_KIDS, CATEGORY_WOMEN, CATEGORY_MEN_AM, CATEGORY_MEN_PRO)
+
+
+@dataclass(frozen=True)
+class Workshop:
+    workshop_id: str
+    title: str
+    date_text: str
+    asks_skating_type: bool = False
+
+
+WORKSHOPS: tuple[Workshop, ...] = (
+    Workshop(
+        "mon_fsk_aggressive",
+        "Как подготовить своё катание от FSK к агрессивным роликам",
+        "8 июня, понедельник, 18:00",
+        True,
+    ),
+    Workshop(
+        "tue_ofp",
+        "ОФП и подготовка тела к катанию",
+        "9 июня, вторник, 18:00",
+    ),
+    Workshop(
+        "wed_video",
+        "Ракурс решает: как увидеть своё катание со стороны",
+        "10 июня, среда, 18:00",
+        True,
+    ),
+    Workshop(
+        "fri_rehab",
+        "Профилактика травм в экстремальном спорте",
+        "12 июня, пятница, 14:00",
+    ),
+    Workshop(
+        "fri_trainers",
+        "Практический воркшоп для тренеров по роликам",
+        "12 июня, пятница, 18:00",
+        True,
+    ),
+    Workshop(
+        "sat_grisha_12",
+        "Продвинутый роллер-фристайл в тренинг-зоне, группа 12:00",
+        "13 июня, суббота, 12:00",
+    ),
+    Workshop(
+        "sat_grisha_15",
+        "Продвинутый роллер-фристайл в тренинг-зоне, группа 15:00",
+        "13 июня, суббота, 15:00",
+    ),
+    Workshop(
+        "sat_rollbay",
+        "Обслуживание роликов: устройство, настройка и уход",
+        "13 июня, суббота, 13:00",
+    ),
+)
 
 
 def program_text() -> str:

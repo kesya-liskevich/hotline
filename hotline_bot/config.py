@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     google_drive_oauth_client_file: str | None = None
     google_drive_oauth_token_file: str = "google-drive-token.json"
     consent_document_file_id: str | None = None
+    port: int = 10000
+    render_external_url: str | None = None
+    webhook_url: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

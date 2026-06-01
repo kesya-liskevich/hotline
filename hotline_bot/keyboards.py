@@ -82,10 +82,11 @@ def registrations_keyboard(registration_ids: list[str]) -> InlineKeyboardMarkup:
 
 
 def workshops_keyboard() -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton(text=workshop.title, callback_data=f"workshop:select:{workshop.workshop_id}")]
-        for workshop in WORKSHOPS
+    buttons = [
+        InlineKeyboardButton(text=str(index), callback_data=f"workshop:number:{index}")
+        for index, _workshop in enumerate(WORKSHOPS, start=1)
     ]
+    rows = [buttons[:4], buttons[4:]]
     rows.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

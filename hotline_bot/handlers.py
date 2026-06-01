@@ -62,6 +62,7 @@ class CompetitionForm(StatesGroup):
 
 
 class WorkshopForm(StatesGroup):
+    select = State()
     full_name = State()
     phone = State()
     skating_type = State()
@@ -135,32 +136,37 @@ def build_router(
     async def workshop_start(callback: CallbackQuery, state: FSMContext) -> None:
         await state.clear()
         await callback.message.answer(
-            "Выберите мастер-класс или лекцию",
+            _workshops_menu_text(),
             reply_markup=workshops_keyboard(),
         )
+        await state.set_state(WorkshopForm.select)
         await callback.answer()
 
-    @router.callback_query(F.data.startswith("workshop:select:"))
-    async def workshop_select(callback: CallbackQuery, state: FSMContext) -> None:
-        workshop_id = callback.data.rsplit(":", 1)[1]
-        workshop = _workshop_by_id(workshop_id)
+    @router.callback_query(WorkshopForm.select, F.data.startswith("workshop:number:"))
+    async def workshop_select_by_button(callback: CallbackQuery, state: FSMContext) -> None:
+        workshop = _workshop_by_number(callback.data.rsplit(":", 1)[1])
         if workshop is None:
             await callback.answer("Мастер-класс не найден", show_alert=True)
             return
-        await state.clear()
-        await state.update_data(
-            telegram_id=callback.from_user.id,
-            telegram_username=callback.from_user.username,
-            workshop_id=workshop.workshop_id,
-            workshop_title=workshop.title,
-            workshop_date=workshop.date_text,
-            workshop_asks_skating_type=workshop.asks_skating_type,
-        )
-        await callback.message.answer(
-            f"{workshop.title}\n{workshop.date_text}\n\nВведите ФИО"
-        )
-        await state.set_state(WorkshopForm.full_name)
+        await _start_workshop_registration(callback.message, state, workshop, callback.from_user.id, callback.from_user.username)
         await callback.answer()
+
+    @router.callback_query(F.data.startswith("workshop:select:"))
+    async def workshop_select_legacy(callback: CallbackQuery, state: FSMContext) -> None:
+        workshop = _workshop_by_id(callback.data.rsplit(":", 1)[1])
+        if workshop is None:
+            await callback.answer("Мастер-класс не найден", show_alert=True)
+            return
+        await _start_workshop_registration(callback.message, state, workshop, callback.from_user.id, callback.from_user.username)
+        await callback.answer()
+
+    @router.message(WorkshopForm.select)
+    async def workshop_select_by_text(message: Message, state: FSMContext) -> None:
+        workshop = _workshop_by_number(message.text or "")
+        if workshop is None:
+            await message.answer("Введите номер мастер-класса из списка")
+            return
+        await _start_workshop_registration(message, state, workshop, message.from_user.id, message.from_user.username)
 
     @router.message(WorkshopForm.full_name)
     async def workshop_full_name(message: Message, state: FSMContext) -> None:
@@ -589,6 +595,46 @@ async def _send_registrations(
 
 def _workshop_by_id(workshop_id: str) -> Workshop | None:
     return next((item for item in WORKSHOPS if item.workshop_id == workshop_id), None)
+
+
+def _workshops_menu_text() -> str:
+    lines = ["Выберите мастер-класс или лекцию:", ""]
+    for index, workshop in enumerate(WORKSHOPS, start=1):
+        lines.append(f"{index}. {workshop.date_text} — {workshop.title}")
+    lines.extend(["", "Введите номер мастер-класса или нажмите кнопку с номером ниже"])
+    return "\n".join(lines)
+
+
+def _workshop_by_number(value: str) -> Workshop | None:
+    try:
+        index = int(value.strip())
+    except ValueError:
+        return None
+    if index < 1 or index > len(WORKSHOPS):
+        return None
+    return WORKSHOPS[index - 1]
+
+
+async def _start_workshop_registration(
+    message: Message,
+    state: FSMContext,
+    workshop: Workshop,
+    telegram_id: int,
+    telegram_username: str | None,
+) -> None:
+    await state.clear()
+    await state.update_data(
+        telegram_id=telegram_id,
+        telegram_username=telegram_username,
+        workshop_id=workshop.workshop_id,
+        workshop_title=workshop.title,
+        workshop_date=workshop.date_text,
+        workshop_asks_skating_type=workshop.asks_skating_type,
+    )
+    await message.answer(
+        f"{workshop.title}\n{workshop.date_text}\n\nВведите ФИО"
+    )
+    await state.set_state(WorkshopForm.full_name)
 
 
 def _workshop_from_state(data: dict) -> WorkshopRegistration:

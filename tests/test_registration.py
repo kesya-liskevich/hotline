@@ -3,8 +3,9 @@ import unittest
 from pathlib import Path
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
+from hotline_bot.handlers import _workshop_by_number
 from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
-from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, program_text
+from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
 
 
@@ -121,6 +122,12 @@ class RegistrationTest(unittest.TestCase):
         self.assertEqual(restored.telegram_id, 123)
         self.assertEqual(restored.workshop_id, "sat_rollbay")
         self.assertEqual(restored.status, RegistrationStatus.SUBMITTED)
+
+    def test_workshop_can_be_selected_by_number(self) -> None:
+        self.assertEqual(_workshop_by_number("1"), WORKSHOPS[0])
+        self.assertEqual(_workshop_by_number(str(len(WORKSHOPS))), WORKSHOPS[-1])
+        self.assertIsNone(_workshop_by_number("0"))
+        self.assertIsNone(_workshop_by_number("abc"))
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

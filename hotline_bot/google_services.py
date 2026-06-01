@@ -199,14 +199,17 @@ class GoogleDriveClient:
             from google.oauth2.credentials import Credentials
             from google.auth.transport.requests import Request
 
-            credentials = Credentials.from_authorized_user_file(str(oauth_token), self.SCOPES)
-            if credentials.expired and credentials.refresh_token:
-                credentials.refresh(Request())
-                try:
-                    oauth_token.write_text(credentials.to_json(), encoding="utf-8")
-                except OSError as exc:
-                    print(f"Could not persist refreshed Google Drive token: {exc}")
-            return credentials
+            try:
+                credentials = Credentials.from_authorized_user_file(str(oauth_token), self.SCOPES)
+                if credentials.expired and credentials.refresh_token:
+                    credentials.refresh(Request())
+                    try:
+                        oauth_token.write_text(credentials.to_json(), encoding="utf-8")
+                    except OSError as exc:
+                        print(f"Could not persist refreshed Google Drive token: {exc}")
+                return credentials
+            except Exception as exc:
+                print(f"Could not use Google Drive OAuth token, falling back to service account: {exc}")
 
         from google.oauth2 import service_account
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from hotline_bot.program import CATEGORIES, DISCIPLINES, WORKSHOPS, CATEGORY_KIDS
+from hotline_bot.program import CATEGORIES, DISCIPLINES, CATEGORY_KIDS
 
 
 def main_menu() -> InlineKeyboardMarkup:
@@ -82,13 +82,11 @@ def registrations_keyboard(registration_ids: list[str]) -> InlineKeyboardMarkup:
 
 
 def workshops_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        InlineKeyboardButton(text=str(index), callback_data=f"workshop:number:{index}")
-        for index, _workshop in enumerate(WORKSHOPS, start=1)
-    ]
-    rows = [buttons[:4], buttons[4:]]
-    rows.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="В меню", callback_data="menu")],
+        ]
+    )
 
 
 def skating_type_keyboard() -> InlineKeyboardMarkup:

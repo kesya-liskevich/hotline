@@ -601,7 +601,7 @@ def _workshops_menu_text() -> str:
     lines = ["Выберите мастер-класс или лекцию:", ""]
     for index, workshop in enumerate(WORKSHOPS, start=1):
         lines.append(f"{index}. {workshop.date_text} — {workshop.title}")
-    lines.extend(["", "Введите номер мастер-класса или нажмите кнопку с номером ниже"])
+    lines.extend(["", "Введите номер мастер-класса одной цифрой"])
     return "\n".join(lines)
 
 

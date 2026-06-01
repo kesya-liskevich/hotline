@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from typing import Protocol
 
-from hotline_bot.models import Registration, WorkshopRegistration
+from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.storage import HEADERS, WORKSHOP_HEADERS
 
 
@@ -13,6 +13,12 @@ class SheetsClient(Protocol):
         ...
 
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        ...
+
+    def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
+        ...
+
+    def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
         ...
 
     def update_registration(self, registration: Registration) -> None:
@@ -39,6 +45,12 @@ class NullSheetsClient:
 
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
         return None
+
+    def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
+        return []
+
+    def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
+        return []
 
     def update_registration(self, registration: Registration) -> None:
         return None
@@ -124,6 +136,24 @@ class GoogleSheetsClient:
             body={"values": [registration.as_row()]},
         ).execute()
 
+    def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
+        rows = self._read_rows("competitions!A2:S")
+        latest: dict[str, Registration] = {}
+        for row in rows:
+            registration = _registration_from_sheet_row(row)
+            if registration and registration.telegram_id == telegram_id:
+                latest[registration.registration_id] = registration
+        return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
+
+    def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
+        rows = self._read_rows("workshops!A2:M")
+        latest: dict[str, WorkshopRegistration] = {}
+        for row in rows:
+            registration = _workshop_registration_from_sheet_row(row)
+            if registration and registration.telegram_id == telegram_id:
+                latest[registration.registration_id] = registration
+        return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
+
     def update_registration(self, registration: Registration) -> None:
         # Append-only history is safer for the first MVP. The latest row by
         # registration_id/status is the source of truth for manual reporting.
@@ -131,6 +161,13 @@ class GoogleSheetsClient:
 
     def spreadsheet_url(self) -> str:
         return f"https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}"
+
+    def _read_rows(self, range_name: str) -> list[list[str]]:
+        result = self.service.spreadsheets().values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range=range_name,
+        ).execute()
+        return result.get("values", [])
 
     def _ensure_headers(self) -> None:
         spreadsheet = self.service.spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
@@ -166,6 +203,58 @@ class GoogleSheetsClient:
             valueInputOption="RAW",
             body={"values": [WORKSHOP_HEADERS]},
         ).execute()
+
+
+def _cell(row: list[str], index: int) -> str:
+    return row[index] if len(row) > index else ""
+
+
+def _registration_from_sheet_row(row: list[str]) -> Registration | None:
+    try:
+        registration = Registration(
+            registration_id=_cell(row, 0),
+            telegram_id=int(_cell(row, 1)),
+            telegram_username=_cell(row, 2) or None,
+            full_name=_cell(row, 3),
+            phone=_cell(row, 4),
+            city=_cell(row, 5),
+            discipline=_cell(row, 7),
+            category=_cell(row, 8),
+            age_or_birthdate=_cell(row, 9),
+            experience=_cell(row, 10),
+            sponsors=_cell(row, 11),
+            passport_file_url=_cell(row, 12),
+            consent_file_url=_cell(row, 13),
+            status=RegistrationStatus(_cell(row, 14) or RegistrationStatus.SUBMITTED.value),
+            needs_review=_cell(row, 15).lower() == "yes",
+            review_note=_cell(row, 16),
+            created_at=_cell(row, 17),
+            updated_at=_cell(row, 18),
+        )
+    except (TypeError, ValueError):
+        return None
+    return registration if registration.registration_id else None
+
+
+def _workshop_registration_from_sheet_row(row: list[str]) -> WorkshopRegistration | None:
+    try:
+        registration = WorkshopRegistration(
+            registration_id=_cell(row, 0),
+            telegram_id=int(_cell(row, 1)),
+            telegram_username=_cell(row, 2) or None,
+            full_name=_cell(row, 3),
+            phone=_cell(row, 4),
+            workshop_id=_cell(row, 6),
+            workshop_title=_cell(row, 7),
+            workshop_date=_cell(row, 8),
+            skating_type=_cell(row, 9),
+            status=RegistrationStatus(_cell(row, 10) or RegistrationStatus.SUBMITTED.value),
+            created_at=_cell(row, 11),
+            updated_at=_cell(row, 12),
+        )
+    except (TypeError, ValueError):
+        return None
+    return registration if registration.registration_id else None
 
 
 class GoogleDriveClient:

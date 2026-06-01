@@ -454,11 +454,11 @@ def build_router(
 
     @router.message(Command("registrations"))
     async def my_registrations(message: Message) -> None:
-        await _send_registrations(message, repo)
+        await _send_registrations(message, repo, sheets)
 
     @router.callback_query(F.data == "registrations")
     async def my_registrations_callback(callback: CallbackQuery) -> None:
-        await _send_registrations(callback.message, repo, callback.from_user.id)
+        await _send_registrations(callback.message, repo, sheets, callback.from_user.id)
         await callback.answer()
 
     @router.callback_query(F.data.startswith("registration:cancel:"))
@@ -550,6 +550,7 @@ async def _ask_minor_consent(message: Message, settings: Settings, age_value: in
 async def _send_registrations(
     message: Message,
     repo: RegistrationRepository,
+    sheets: SheetsClient,
     telegram_id: int | None = None,
 ) -> None:
     user_id = telegram_id or message.from_user.id
@@ -561,6 +562,19 @@ async def _send_registrations(
         item for item in repo.list_workshops_by_user(user_id)
         if item.status != RegistrationStatus.CANCELLED
     ]
+    if not registrations and not workshop_registrations:
+        for item in sheets.list_registrations_by_user(user_id):
+            repo.save(item)
+        for item in sheets.list_workshop_registrations_by_user(user_id):
+            repo.save_workshop(item)
+        registrations = [
+            item for item in repo.list_by_user(user_id)
+            if item.status != RegistrationStatus.CANCELLED
+        ]
+        workshop_registrations = [
+            item for item in repo.list_workshops_by_user(user_id)
+            if item.status != RegistrationStatus.CANCELLED
+        ]
     if not registrations and not workshop_registrations:
         await message.answer("У вас пока нет активных заявок.", reply_markup=main_menu())
         return

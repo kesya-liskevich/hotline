@@ -15,6 +15,9 @@ class SheetsClient(Protocol):
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
         ...
 
+    def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        ...
+
     def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
         ...
 
@@ -44,6 +47,9 @@ class NullSheetsClient:
         return None
 
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        return None
+
+    def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
         return None
 
     def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
@@ -135,6 +141,9 @@ class GoogleSheetsClient:
             insertDataOption="INSERT_ROWS",
             body={"values": [registration.as_row()]},
         ).execute()
+
+    def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        self.append_workshop_registration(registration)
 
     def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
         rows = self._read_rows("competitions!A2:S")

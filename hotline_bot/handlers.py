@@ -471,15 +471,26 @@ def build_router(
 
     @router.callback_query(F.data.startswith("registration:cancel:"))
     async def cancel_registration(callback: CallbackQuery) -> None:
+        await _cancel_competition_registration(callback, repo, sheets)
+
+    @router.callback_query(F.data.startswith("competition:cancel:"))
+    async def cancel_competition(callback: CallbackQuery) -> None:
+        await _cancel_competition_registration(callback, repo, sheets)
+
+    @router.callback_query(F.data.startswith("workshop:cancel:"))
+    async def cancel_workshop(callback: CallbackQuery) -> None:
         registration_id = callback.data.rsplit(":", 1)[1]
-        registration = repo.get(registration_id)
+        registration = repo.get_workshop(registration_id)
         if not registration or registration.telegram_id != callback.from_user.id:
-            await callback.answer("Заявка не найдена.", show_alert=True)
+            await callback.answer("Запись не найдена.", show_alert=True)
             return
         registration.mark_cancelled()
-        repo.save(registration)
-        sheets.update_registration(registration)
-        await callback.message.answer("Заявка отменена.", reply_markup=main_menu())
+        repo.save_workshop(registration)
+        sheets.update_workshop_registration(registration)
+        await callback.message.answer(
+            f"Запись на мастер-класс отменена:\n{registration.workshop_title}",
+            reply_markup=main_menu(),
+        )
         await callback.answer()
 
     @router.message(Command("stats"))
@@ -594,8 +605,56 @@ async def _send_registrations(
     text = "\n\n".join(items)
     await message.answer(
         text,
-        reply_markup=registrations_keyboard([item.registration_id for item in registrations]),
+        reply_markup=registrations_keyboard(
+            _cancel_buttons(registrations, workshop_registrations),
+        ),
     )
+
+
+async def _cancel_competition_registration(
+    callback: CallbackQuery,
+    repo: RegistrationRepository,
+    sheets: SheetsClient,
+) -> None:
+    registration_id = callback.data.rsplit(":", 1)[1]
+    registration = repo.get(registration_id)
+    if not registration or registration.telegram_id != callback.from_user.id:
+        await callback.answer("Заявка не найдена.", show_alert=True)
+        return
+    registration.mark_cancelled()
+    repo.save(registration)
+    sheets.update_registration(registration)
+    await callback.message.answer(
+        f"Заявка на соревнования отменена:\n{registration.discipline}",
+        reply_markup=main_menu(),
+    )
+    await callback.answer()
+
+
+def _cancel_buttons(
+    registrations: list[Registration],
+    workshop_registrations: list[WorkshopRegistration],
+) -> list[tuple[str, str]]:
+    buttons: list[tuple[str, str]] = []
+    for registration in registrations:
+        label = _truncate_button_text(f"Отменить соревнования: {registration.discipline}")
+        buttons.append((label, f"competition:cancel:{registration.registration_id}"))
+    for registration in workshop_registrations:
+        title = _short_workshop_title(registration)
+        label = _truncate_button_text(f"Отменить МК: {title}")
+        buttons.append((label, f"workshop:cancel:{registration.registration_id}"))
+    return buttons
+
+
+def _short_workshop_title(registration: WorkshopRegistration) -> str:
+    date_part = registration.workshop_date.split(",", 1)[0]
+    return f"{date_part}: {registration.workshop_title}"
+
+
+def _truncate_button_text(value: str, limit: int = 58) -> str:
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit - 1]}…"
 
 
 def _workshop_by_id(workshop_id: str) -> Workshop | None:

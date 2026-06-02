@@ -72,10 +72,10 @@ def edit_keyboard(is_minor: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def registrations_keyboard(registration_ids: list[str]) -> InlineKeyboardMarkup:
+def registrations_keyboard(cancel_buttons: list[tuple[str, str]]) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=f"Отменить {reg_id[:8]}", callback_data=f"registration:cancel:{reg_id}")]
-        for reg_id in registration_ids
+        [InlineKeyboardButton(text=text, callback_data=callback_data)]
+        for text, callback_data in cancel_buttons
     ]
     rows.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)

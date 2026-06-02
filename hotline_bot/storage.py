@@ -213,6 +213,14 @@ class RegistrationRepository:
             ).fetchall()
         return [self._workshop_from_row(row) for row in rows]
 
+    def get_workshop(self, registration_id: str) -> WorkshopRegistration | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM workshop_registrations WHERE registration_id = ?",
+                (registration_id,),
+            ).fetchone()
+        return self._workshop_from_row(row) if row else None
+
     def get(self, registration_id: str) -> Registration | None:
         with self._connect() as conn:
             row = conn.execute(

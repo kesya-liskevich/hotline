@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
-from hotline_bot.handlers import _workshop_by_number
+from hotline_bot.handlers import _cancel_buttons, _workshop_by_number
 from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
@@ -92,6 +92,56 @@ class RegistrationTest(unittest.TestCase):
             self.assertEqual(len(saved), 1)
             self.assertEqual(saved[0].workshop_id, "mon_fsk_aggressive")
             self.assertEqual(saved[0].skating_type, "ФСК")
+
+    def test_repository_cancels_only_selected_workshop_registration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = RegistrationRepository(str(Path(tmpdir) / "hotline.sqlite3"))
+            first = WorkshopRegistration(
+                telegram_id=123,
+                workshop_id="tue_ofp",
+                workshop_title="ОФП и подготовка тела к катанию",
+                workshop_date="9 июня, вторник, 18:00",
+                full_name="Иван Иванов",
+                phone="+79990000000",
+            )
+            second = WorkshopRegistration(
+                telegram_id=123,
+                workshop_id="sat_rollbay",
+                workshop_title="Обслуживание роликов: устройство, настройка и уход",
+                workshop_date="13 июня, суббота, 13:00",
+                full_name="Иван Иванов",
+                phone="+79990000000",
+            )
+
+            repo.save_workshop(first)
+            repo.save_workshop(second)
+            first.mark_cancelled()
+            repo.save_workshop(first)
+            saved = repo.list_workshops_by_user(123)
+
+            statuses = {item.registration_id: item.status for item in saved}
+            self.assertEqual(statuses[first.registration_id], RegistrationStatus.CANCELLED)
+            self.assertEqual(statuses[second.registration_id], RegistrationStatus.SUBMITTED)
+
+    def test_cancel_buttons_use_readable_labels(self) -> None:
+        competition = make_registration()
+        workshop = WorkshopRegistration(
+            telegram_id=123,
+            workshop_id="tue_ofp",
+            workshop_title="ОФП и подготовка тела к катанию",
+            workshop_date="9 июня, вторник, 18:00",
+            full_name="Иван Иванов",
+            phone="+79990000000",
+        )
+
+        buttons = _cancel_buttons([competition], [workshop])
+
+        labels = [label for label, _callback_data in buttons]
+        callbacks = [_callback_data for _label, _callback_data in buttons]
+        self.assertIn("Отменить соревнования: Street + Park", labels)
+        self.assertTrue(any(label.startswith("Отменить МК: 9 июня") for label in labels))
+        self.assertIn(f"competition:cancel:{competition.registration_id}", callbacks)
+        self.assertIn(f"workshop:cancel:{workshop.registration_id}", callbacks)
 
     def test_registration_can_be_restored_from_sheet_row(self) -> None:
         row = make_registration().as_row()

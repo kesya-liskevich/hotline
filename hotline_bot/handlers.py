@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import date, datetime
 from pathlib import Path
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -514,7 +516,10 @@ def build_router(
 
 async def _send_welcome(message: Message) -> None:
     if WELCOME_IMAGE_PATH.exists():
-        await message.answer_photo(FSInputFile(WELCOME_IMAGE_PATH))
+        try:
+            await message.answer_photo(FSInputFile(WELCOME_IMAGE_PATH))
+        except TelegramNetworkError as exc:
+            logging.warning("Could not send welcome image: %s", exc)
     await message.answer(WELCOME_TEXT, reply_markup=main_menu())
 
 

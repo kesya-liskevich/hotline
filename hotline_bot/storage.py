@@ -4,7 +4,7 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
-from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
+from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 
 
 HEADERS = [
@@ -40,6 +40,18 @@ WORKSHOP_HEADERS = [
     "workshop_title",
     "workshop_date",
     "skating_type",
+    "status",
+    "created_at",
+    "updated_at",
+]
+
+KEVIN_TRAINING_HEADERS = [
+    "registration_id",
+    "telegram_id",
+    "telegram_username",
+    "full_name",
+    "phone",
+    "event_type",
     "status",
     "created_at",
     "updated_at",
@@ -95,6 +107,20 @@ class RegistrationRepository:
                     full_name TEXT NOT NULL,
                     phone TEXT NOT NULL,
                     skating_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS kevin_training_registrations (
+                    registration_id TEXT PRIMARY KEY,
+                    telegram_id INTEGER NOT NULL,
+                    telegram_username TEXT,
+                    full_name TEXT NOT NULL,
+                    phone TEXT NOT NULL,
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -201,6 +227,46 @@ class RegistrationRepository:
                 ),
             )
 
+    def save_kevin_training(self, registration: KevinTrainingRegistration) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO kevin_training_registrations (
+                    registration_id, telegram_id, telegram_username, full_name,
+                    phone, status, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(registration_id) DO UPDATE SET
+                    telegram_username = excluded.telegram_username,
+                    full_name = excluded.full_name,
+                    phone = excluded.phone,
+                    status = excluded.status,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    registration.registration_id,
+                    registration.telegram_id,
+                    registration.telegram_username,
+                    registration.full_name,
+                    registration.phone,
+                    registration.status.value,
+                    registration.created_at,
+                    registration.updated_at,
+                ),
+            )
+
+    def list_kevin_trainings_by_user(self, telegram_id: int) -> list[KevinTrainingRegistration]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM kevin_training_registrations
+                WHERE telegram_id = ?
+                ORDER BY created_at DESC
+                """,
+                (telegram_id,),
+            ).fetchall()
+        return [self._kevin_training_from_row(row) for row in rows]
+
     def list_workshops_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -282,6 +348,18 @@ class RegistrationRepository:
             full_name=row["full_name"],
             phone=row["phone"],
             skating_type=row["skating_type"],
+            status=RegistrationStatus(row["status"]),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    def _kevin_training_from_row(self, row: sqlite3.Row) -> KevinTrainingRegistration:
+        return KevinTrainingRegistration(
+            registration_id=row["registration_id"],
+            telegram_id=row["telegram_id"],
+            telegram_username=row["telegram_username"],
+            full_name=row["full_name"],
+            phone=row["phone"],
             status=RegistrationStatus(row["status"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],

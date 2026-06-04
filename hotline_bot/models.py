@@ -131,3 +131,28 @@ class WorkshopRegistration:
             f"Телефон: {self.phone}"
             f"{skating}"
         )
+
+
+@dataclass
+class KevinTrainingRegistration:
+    telegram_id: int
+    telegram_username: str | None = None
+    registration_id: str = field(default_factory=lambda: uuid4().hex)
+    full_name: str = ""
+    phone: str = ""
+    status: RegistrationStatus = RegistrationStatus.SUBMITTED
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def as_row(self) -> list[str]:
+        return [
+            self.registration_id,
+            str(self.telegram_id),
+            self.telegram_username or "",
+            self.full_name,
+            self.phone,
+            "kevin_lee_training",
+            self.status.value,
+            self.created_at,
+            self.updated_at,
+        ]

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
 from hotline_bot.handlers import _cancel_buttons, _workshop_by_number
-from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
+from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
 
@@ -92,6 +92,39 @@ class RegistrationTest(unittest.TestCase):
             self.assertEqual(len(saved), 1)
             self.assertEqual(saved[0].workshop_id, "mon_fsk_aggressive")
             self.assertEqual(saved[0].skating_type, "ФСК")
+
+    def test_kevin_training_row_contains_contact_data(self) -> None:
+        registration = KevinTrainingRegistration(
+            telegram_id=123,
+            telegram_username="skater",
+            full_name="Иван Иванов",
+            phone="+79990000000",
+        )
+
+        row = registration.as_row()
+
+        self.assertEqual(row[1], "123")
+        self.assertEqual(row[3], "Иван Иванов")
+        self.assertEqual(row[4], "+79990000000")
+        self.assertEqual(row[5], "kevin_lee_training")
+        self.assertEqual(row[6], "submitted")
+
+    def test_repository_saves_kevin_training_registration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = RegistrationRepository(str(Path(tmpdir) / "hotline.sqlite3"))
+            registration = KevinTrainingRegistration(
+                telegram_id=123,
+                telegram_username="skater",
+                full_name="Иван Иванов",
+                phone="+79990000000",
+            )
+
+            repo.save_kevin_training(registration)
+            saved = repo.list_kevin_trainings_by_user(123)
+
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0].full_name, "Иван Иванов")
+            self.assertEqual(saved[0].phone, "+79990000000")
 
     def test_repository_cancels_only_selected_workshop_registration(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

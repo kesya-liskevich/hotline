@@ -11,6 +11,7 @@ def main_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Регистрация на соревнования", callback_data="competition:start")],
             [InlineKeyboardButton(text="Мои регистрации", callback_data="registrations")],
             [InlineKeyboardButton(text="Запись на мастер-класс/лекцию", callback_data="workshop:start")],
+            [InlineKeyboardButton(text="Kevin Lee: мастер-класс", callback_data="kevin:start")],
             [InlineKeyboardButton(text="Программа и расписание", callback_data="program")],
         ]
     )

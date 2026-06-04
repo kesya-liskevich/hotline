@@ -25,7 +25,7 @@ from hotline_bot.keyboards import (
     skating_type_keyboard,
     workshops_keyboard,
 )
-from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
+from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import (
     WORKSHOPS,
     Workshop,
@@ -70,6 +70,11 @@ class WorkshopForm(StatesGroup):
     skating_type = State()
 
 
+class KevinTrainingForm(StatesGroup):
+    full_name = State()
+    phone = State()
+
+
 EDIT_PROMPTS = {
     "full_name": ("Введите ФИО полностью: имя, фамилия, отчество", CompetitionForm.full_name),
     "phone": ("Введите телефон в формате +7XXXXXXXXXX", CompetitionForm.phone),
@@ -99,6 +104,16 @@ RULES_TEXT = (
 MINOR_UNDER_14_CONSENT_TEXT = (
     "Пожалуйста, заполните <a href=\"https://docs.google.com/document/d/10I1iilxi5bSJNJlmgJWQ4OEHFz-UL8CrqeuDfS9Z0z0/edit?usp=sharing\">Согласие об отказе претензий</a> и отправьте в чат его фото. "
     "Убедитесь, что текст читаем и в кадр попали все поля документа"
+)
+KEVIN_TRAINING_TEXT = (
+    "🇰🇷 Тренировка с Kevin Lee\n\n"
+    "Во время фестиваля «Горячая линия» мы разыграем 6 индивидуальных тренировок "
+    "с нашим специальным гостем из Южной Кореи — Kyungmin Kevin Lee, тренером "
+    "с 15-летним опытом и основателем AIL School.\n\n"
+    "Тренировка длится 1,5 часа и подходит для любого уровня катания.\n\n"
+    "Заполните короткую заявку ниже. Из всех участников случайным образом будут "
+    "выбраны 6 человек, которые получат бесплатную тренировку с Кевином.\n\n"
+    "Введите ФИО:"
 )
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
 
@@ -133,6 +148,32 @@ def build_router(
             "Сейчас доступна регистрация на соревнования."
         )
         await callback.answer()
+
+    @router.callback_query(F.data == "kevin:start")
+    async def kevin_start(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.clear()
+        await state.update_data(
+            telegram_id=callback.from_user.id,
+            telegram_username=callback.from_user.username,
+        )
+        await callback.message.answer(KEVIN_TRAINING_TEXT)
+        await state.set_state(KevinTrainingForm.full_name)
+        await callback.answer()
+
+    @router.message(KevinTrainingForm.full_name)
+    async def kevin_full_name(message: Message, state: FSMContext) -> None:
+        await state.update_data(full_name=(message.text or "").strip())
+        await message.answer("Введите телефон в формате +7XXXXXXXXXX")
+        await state.set_state(KevinTrainingForm.phone)
+
+    @router.message(KevinTrainingForm.phone)
+    async def kevin_phone(message: Message, state: FSMContext) -> None:
+        phone_value = (message.text or "").strip()
+        if not _is_valid_phone(phone_value):
+            await message.answer("Введите телефон в формате +7XXXXXXXXXX")
+            return
+        await state.update_data(phone=phone_value)
+        await _save_kevin_training_registration(message, state, repo, sheets)
 
     @router.callback_query(F.data == "workshop:start")
     async def workshop_start(callback: CallbackQuery, state: FSMContext) -> None:
@@ -728,6 +769,28 @@ async def _save_workshop_registration(
         "Спасибо за запись! Вы в списке участников мастер-класса.\n\n"
         f"{registration.workshop_title}\n"
         f"{registration.workshop_date}",
+        reply_markup=main_menu(),
+    )
+
+
+async def _save_kevin_training_registration(
+    message: Message,
+    state: FSMContext,
+    repo: RegistrationRepository,
+    sheets: SheetsClient,
+) -> None:
+    data = await state.get_data()
+    registration = KevinTrainingRegistration(
+        telegram_id=data["telegram_id"],
+        telegram_username=data.get("telegram_username"),
+        full_name=data.get("full_name", ""),
+        phone=data.get("phone", ""),
+    )
+    repo.save_kevin_training(registration)
+    sheets.append_kevin_training_registration(registration)
+    await state.clear()
+    await message.answer(
+        "Ура, вы в списках! Мы отправим вам уведомление, когда проведём розыгрыш.",
         reply_markup=main_menu(),
     )
 

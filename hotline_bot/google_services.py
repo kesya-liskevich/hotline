@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 from typing import Protocol
 
-from hotline_bot.models import Registration, RegistrationStatus, WorkshopRegistration
-from hotline_bot.storage import HEADERS, WORKSHOP_HEADERS
+from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
+from hotline_bot.storage import HEADERS, KEVIN_TRAINING_HEADERS, WORKSHOP_HEADERS
 
 
 class SheetsClient(Protocol):
@@ -13,6 +13,9 @@ class SheetsClient(Protocol):
         ...
 
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        ...
+
+    def append_kevin_training_registration(self, registration: KevinTrainingRegistration) -> None:
         ...
 
     def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
@@ -47,6 +50,9 @@ class NullSheetsClient:
         return None
 
     def append_workshop_registration(self, registration: WorkshopRegistration) -> None:
+        return None
+
+    def append_kevin_training_registration(self, registration: KevinTrainingRegistration) -> None:
         return None
 
     def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
@@ -142,6 +148,15 @@ class GoogleSheetsClient:
             body={"values": [registration.as_row()]},
         ).execute()
 
+    def append_kevin_training_registration(self, registration: KevinTrainingRegistration) -> None:
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range="kevin_lee!A:I",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [registration.as_row()]},
+        ).execute()
+
     def update_workshop_registration(self, registration: WorkshopRegistration) -> None:
         self.append_workshop_registration(registration)
 
@@ -186,7 +201,7 @@ class GoogleSheetsClient:
         }
         missing = [
             title
-            for title in ("registrations_all", "competitions", "summary", "workshops")
+            for title in ("registrations_all", "competitions", "summary", "workshops", "kevin_lee")
             if title not in existing_titles
         ]
         if missing:
@@ -211,6 +226,12 @@ class GoogleSheetsClient:
             range="workshops!A1:M1",
             valueInputOption="RAW",
             body={"values": [WORKSHOP_HEADERS]},
+        ).execute()
+        self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range="kevin_lee!A1:I1",
+            valueInputOption="RAW",
+            body={"values": [KEVIN_TRAINING_HEADERS]},
         ).execute()
 
 

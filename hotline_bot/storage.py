@@ -51,6 +51,7 @@ KEVIN_TRAINING_HEADERS = [
     "telegram_username",
     "full_name",
     "phone",
+    "age",
     "event_type",
     "status",
     "created_at",
@@ -121,12 +122,28 @@ class RegistrationRepository:
                     telegram_username TEXT,
                     full_name TEXT NOT NULL,
                     phone TEXT NOT NULL,
+                    age TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
                 """
             )
+            self._ensure_column(conn, "kevin_training_registrations", "age", "TEXT NOT NULL DEFAULT ''")
+
+    def _ensure_column(
+        self,
+        conn: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        definition: str,
+    ) -> None:
+        columns = {
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        if column_name not in columns:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
 
     def save(self, registration: Registration) -> None:
         with self._connect() as conn:
@@ -233,13 +250,14 @@ class RegistrationRepository:
                 """
                 INSERT INTO kevin_training_registrations (
                     registration_id, telegram_id, telegram_username, full_name,
-                    phone, status, created_at, updated_at
+                    phone, age, status, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(registration_id) DO UPDATE SET
                     telegram_username = excluded.telegram_username,
                     full_name = excluded.full_name,
                     phone = excluded.phone,
+                    age = excluded.age,
                     status = excluded.status,
                     updated_at = excluded.updated_at
                 """,
@@ -249,6 +267,7 @@ class RegistrationRepository:
                     registration.telegram_username,
                     registration.full_name,
                     registration.phone,
+                    registration.age,
                     registration.status.value,
                     registration.created_at,
                     registration.updated_at,
@@ -360,6 +379,7 @@ class RegistrationRepository:
             telegram_username=row["telegram_username"],
             full_name=row["full_name"],
             phone=row["phone"],
+            age=row["age"],
             status=RegistrationStatus(row["status"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],

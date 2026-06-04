@@ -72,6 +72,7 @@ class WorkshopForm(StatesGroup):
 
 class KevinTrainingForm(StatesGroup):
     full_name = State()
+    age = State()
     phone = State()
 
 
@@ -107,12 +108,12 @@ MINOR_UNDER_14_CONSENT_TEXT = (
 )
 KEVIN_TRAINING_TEXT = (
     "🇰🇷 Тренировка с Kevin Lee\n\n"
-    "Во время фестиваля «Горячая линия» мы разыграем 6 индивидуальных тренировок "
-    "с нашим специальным гостем из Южной Кореи — Kyungmin Kevin Lee, тренером "
+    "Во время фестиваля «Горячая линия» мы разыграем 6 мест на тренировки "
+    "в малых группах с нашим специальным гостем из Южной Кореи — Kyungmin Kevin Lee, тренером "
     "с 15-летним опытом и основателем AIL School.\n\n"
-    "Тренировка длится 1,5 часа и подходит для любого уровня катания.\n\n"
+    "Тренировка длится 1 часа и подходит для любого уровня катания.\n\n"
     "Заполните короткую заявку ниже. Из всех участников случайным образом будут "
-    "выбраны 6 человек, которые получат бесплатную тренировку с Кевином.\n\n"
+    "выбраны 6 человек.\n\n"
     "Введите ФИО:"
 )
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
@@ -163,6 +164,12 @@ def build_router(
     @router.message(KevinTrainingForm.full_name)
     async def kevin_full_name(message: Message, state: FSMContext) -> None:
         await state.update_data(full_name=(message.text or "").strip())
+        await message.answer("Введите возраст участника")
+        await state.set_state(KevinTrainingForm.age)
+
+    @router.message(KevinTrainingForm.age)
+    async def kevin_age(message: Message, state: FSMContext) -> None:
+        await state.update_data(age=(message.text or "").strip())
         await message.answer("Введите телефон в формате +7XXXXXXXXXX")
         await state.set_state(KevinTrainingForm.phone)
 
@@ -785,6 +792,7 @@ async def _save_kevin_training_registration(
         telegram_username=data.get("telegram_username"),
         full_name=data.get("full_name", ""),
         phone=data.get("phone", ""),
+        age=data.get("age", ""),
     )
     repo.save_kevin_training(registration)
     sheets.append_kevin_training_registration(registration)

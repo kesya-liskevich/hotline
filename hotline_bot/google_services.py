@@ -151,7 +151,7 @@ class GoogleSheetsClient:
     def append_kevin_training_registration(self, registration: KevinTrainingRegistration) -> None:
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee!A:I",
+            range="kevin_lee!A:J",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": [registration.as_row()]},
@@ -229,7 +229,7 @@ class GoogleSheetsClient:
         ).execute()
         self.service.spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee!A1:I1",
+            range="kevin_lee!A1:J1",
             valueInputOption="RAW",
             body={"values": [KEVIN_TRAINING_HEADERS]},
         ).execute()

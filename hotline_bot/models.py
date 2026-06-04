@@ -140,6 +140,7 @@ class KevinTrainingRegistration:
     registration_id: str = field(default_factory=lambda: uuid4().hex)
     full_name: str = ""
     phone: str = ""
+    age: str = ""
     status: RegistrationStatus = RegistrationStatus.SUBMITTED
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -151,6 +152,7 @@ class KevinTrainingRegistration:
             self.telegram_username or "",
             self.full_name,
             self.phone,
+            self.age,
             "kevin_lee_training",
             self.status.value,
             self.created_at,

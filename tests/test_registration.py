@@ -99,6 +99,7 @@ class RegistrationTest(unittest.TestCase):
             telegram_username="skater",
             full_name="Иван Иванов",
             phone="+79990000000",
+            age="18",
         )
 
         row = registration.as_row()
@@ -106,8 +107,9 @@ class RegistrationTest(unittest.TestCase):
         self.assertEqual(row[1], "123")
         self.assertEqual(row[3], "Иван Иванов")
         self.assertEqual(row[4], "+79990000000")
-        self.assertEqual(row[5], "kevin_lee_training")
-        self.assertEqual(row[6], "submitted")
+        self.assertEqual(row[5], "18")
+        self.assertEqual(row[6], "kevin_lee_training")
+        self.assertEqual(row[7], "submitted")
 
     def test_repository_saves_kevin_training_registration(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -117,6 +119,7 @@ class RegistrationTest(unittest.TestCase):
                 telegram_username="skater",
                 full_name="Иван Иванов",
                 phone="+79990000000",
+                age="18",
             )
 
             repo.save_kevin_training(registration)
@@ -125,6 +128,7 @@ class RegistrationTest(unittest.TestCase):
             self.assertEqual(len(saved), 1)
             self.assertEqual(saved[0].full_name, "Иван Иванов")
             self.assertEqual(saved[0].phone, "+79990000000")
+            self.assertEqual(saved[0].age, "18")
 
     def test_repository_cancels_only_selected_workshop_registration(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

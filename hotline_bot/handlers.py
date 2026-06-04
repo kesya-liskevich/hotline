@@ -19,6 +19,7 @@ from hotline_bot.keyboards import (
     confirmation_keyboard,
     disciplines_keyboard,
     edit_keyboard,
+    kevin_training_options_keyboard,
     main_menu,
     registrations_keyboard,
     rules_ack_keyboard,
@@ -71,6 +72,7 @@ class WorkshopForm(StatesGroup):
 
 
 class KevinTrainingForm(StatesGroup):
+    option = State()
     full_name = State()
     age = State()
     phone = State()
@@ -108,13 +110,15 @@ MINOR_UNDER_14_CONSENT_TEXT = (
 )
 KEVIN_TRAINING_TEXT = (
     "🇰🇷 Тренировка с Kevin Lee\n\n"
-    "Во время фестиваля «Горячая линия» мы разыграем 6 мест на тренировки "
-    "в малых группах с нашим специальным гостем из Южной Кореи — Kyungmin Kevin Lee, тренером "
-    "с 15-летним опытом и основателем AIL School.\n\n"
-    "Тренировка длится 1 часа и подходит для любого уровня катания.\n\n"
-    "Заполните короткую заявку ниже. Из всех участников случайным образом будут "
-    "выбраны 6 человек.\n\n"
-    "Введите ФИО:"
+    "Во время фестиваля «Горячая линия» наш специальный гость из Южной Кореи "
+    "Kyungmin Kevin Lee проведёт серию индивидуальных тренировок.\n\n"
+    "🧷 Формат:\n"
+    "— индивидуальное занятие;\n"
+    "— 1,5 часа;\n"
+    "— любой уровень подготовки.\n\n"
+    "Выберите вариант участия:\n"
+    "🔥 Бесплатное участие (розыгрыш 6 мест)\n"
+    "🎟 Гарантированное участие (4500 ₽)"
 )
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
 
@@ -157,7 +161,18 @@ def build_router(
             telegram_id=callback.from_user.id,
             telegram_username=callback.from_user.username,
         )
-        await callback.message.answer(KEVIN_TRAINING_TEXT)
+        await callback.message.answer(KEVIN_TRAINING_TEXT, reply_markup=kevin_training_options_keyboard())
+        await state.set_state(KevinTrainingForm.option)
+        await callback.answer()
+
+    @router.callback_query(KevinTrainingForm.option, F.data.startswith("kevin:option:"))
+    async def kevin_option(callback: CallbackQuery, state: FSMContext) -> None:
+        participation_type = callback.data.rsplit(":", 1)[1]
+        if participation_type not in {"lottery", "paid"}:
+            await callback.answer("Выберите вариант из списка", show_alert=True)
+            return
+        await state.update_data(participation_type=participation_type)
+        await callback.message.answer("Введите ФИО:")
         await state.set_state(KevinTrainingForm.full_name)
         await callback.answer()
 
@@ -793,14 +808,21 @@ async def _save_kevin_training_registration(
         full_name=data.get("full_name", ""),
         phone=data.get("phone", ""),
         age=data.get("age", ""),
+        participation_type=data.get("participation_type", "lottery"),
     )
     repo.save_kevin_training(registration)
     sheets.append_kevin_training_registration(registration)
     await state.clear()
     await message.answer(
-        "Ура, вы в списках! Мы отправим вам уведомление, когда проведём розыгрыш.",
+        _kevin_training_success_text(registration.participation_type),
         reply_markup=main_menu(),
     )
+
+
+def _kevin_training_success_text(participation_type: str) -> str:
+    if participation_type == "paid":
+        return "Ура, вы в списках! Мы свяжемся с вами по оплате и деталям тренировки."
+    return "Ура, вы в списках! Мы отправим вам уведомление, когда проведём розыгрыш."
 
 
 def _draft_from_state(data: dict) -> Registration:

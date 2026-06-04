@@ -53,6 +53,7 @@ KEVIN_TRAINING_HEADERS = [
     "phone",
     "age",
     "event_type",
+    "participation_type",
     "status",
     "created_at",
     "updated_at",
@@ -123,6 +124,7 @@ class RegistrationRepository:
                     full_name TEXT NOT NULL,
                     phone TEXT NOT NULL,
                     age TEXT NOT NULL DEFAULT '',
+                    participation_type TEXT NOT NULL DEFAULT 'lottery',
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -130,6 +132,12 @@ class RegistrationRepository:
                 """
             )
             self._ensure_column(conn, "kevin_training_registrations", "age", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(
+                conn,
+                "kevin_training_registrations",
+                "participation_type",
+                "TEXT NOT NULL DEFAULT 'lottery'",
+            )
 
     def _ensure_column(
         self,
@@ -250,14 +258,15 @@ class RegistrationRepository:
                 """
                 INSERT INTO kevin_training_registrations (
                     registration_id, telegram_id, telegram_username, full_name,
-                    phone, age, status, created_at, updated_at
+                    phone, age, participation_type, status, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(registration_id) DO UPDATE SET
                     telegram_username = excluded.telegram_username,
                     full_name = excluded.full_name,
                     phone = excluded.phone,
                     age = excluded.age,
+                    participation_type = excluded.participation_type,
                     status = excluded.status,
                     updated_at = excluded.updated_at
                 """,
@@ -268,6 +277,7 @@ class RegistrationRepository:
                     registration.full_name,
                     registration.phone,
                     registration.age,
+                    registration.participation_type,
                     registration.status.value,
                     registration.created_at,
                     registration.updated_at,
@@ -380,6 +390,7 @@ class RegistrationRepository:
             full_name=row["full_name"],
             phone=row["phone"],
             age=row["age"],
+            participation_type=row["participation_type"],
             status=RegistrationStatus(row["status"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],

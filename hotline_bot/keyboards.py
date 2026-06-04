@@ -11,7 +11,7 @@ def main_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Регистрация на соревнования", callback_data="competition:start")],
             [InlineKeyboardButton(text="Мои регистрации", callback_data="registrations")],
             [InlineKeyboardButton(text="Запись на мастер-класс/лекцию", callback_data="workshop:start")],
-            [InlineKeyboardButton(text="Kevin Lee: мастер-класс", callback_data="kevin:start")],
+            [InlineKeyboardButton(text="Тренировка с Kevin Lee", callback_data="kevin:start")],
             [InlineKeyboardButton(text="Программа и расписание", callback_data="program")],
         ]
     )
@@ -85,6 +85,16 @@ def registrations_keyboard(cancel_buttons: list[tuple[str, str]]) -> InlineKeybo
 def workshops_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="В меню", callback_data="menu")],
+        ]
+    )
+
+
+def kevin_training_options_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔥 Розыгрыш", callback_data="kevin:option:lottery")],
+            [InlineKeyboardButton(text="🎟 Платная тренировка", callback_data="kevin:option:paid")],
             [InlineKeyboardButton(text="В меню", callback_data="menu")],
         ]
     )

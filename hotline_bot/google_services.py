@@ -149,9 +149,10 @@ class GoogleSheetsClient:
         ).execute()
 
     def append_kevin_training_registration(self, registration: KevinTrainingRegistration) -> None:
+        sheet_name = "kevin_lee_paid" if registration.participation_type == "paid" else "kevin_lee_lottery"
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee!A:J",
+            range=f"{sheet_name}!A:K",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={"values": [registration.as_row()]},
@@ -201,7 +202,15 @@ class GoogleSheetsClient:
         }
         missing = [
             title
-            for title in ("registrations_all", "competitions", "summary", "workshops", "kevin_lee")
+            for title in (
+                "registrations_all",
+                "competitions",
+                "summary",
+                "workshops",
+                "kevin_lee",
+                "kevin_lee_lottery",
+                "kevin_lee_paid",
+            )
             if title not in existing_titles
         ]
         if missing:
@@ -229,10 +238,42 @@ class GoogleSheetsClient:
         ).execute()
         self.service.spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee!A1:J1",
+            range="kevin_lee!A1:K1",
             valueInputOption="RAW",
             body={"values": [KEVIN_TRAINING_HEADERS]},
         ).execute()
+        for sheet_name in ("kevin_lee_lottery", "kevin_lee_paid"):
+            self.service.spreadsheets().values().update(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{sheet_name}!A1:K1",
+                valueInputOption="RAW",
+                body={"values": [KEVIN_TRAINING_HEADERS]},
+            ).execute()
+        self._migrate_legacy_kevin_lottery_rows()
+
+    def _migrate_legacy_kevin_lottery_rows(self) -> None:
+        legacy_rows = self._read_rows("kevin_lee!A2:K")
+        lottery_rows = self._read_rows("kevin_lee_lottery!A2:K")
+        existing_ids = {_cell(row, 0) for row in lottery_rows}
+        rows_to_copy: list[list[str]] = []
+        for row in legacy_rows:
+            registration_id = _cell(row, 0)
+            if not registration_id or registration_id in existing_ids:
+                continue
+            padded = [*row, *[""] * (len(KEVIN_TRAINING_HEADERS) - len(row))]
+            if len(row) == 10:
+                padded = [*row[:7], "lottery", *row[7:]]
+            padded[6] = padded[6] or "kevin_lee_training"
+            padded[7] = padded[7] or "lottery"
+            rows_to_copy.append(padded[: len(KEVIN_TRAINING_HEADERS)])
+        if rows_to_copy:
+            self.service.spreadsheets().values().append(
+                spreadsheetId=self.spreadsheet_id,
+                range="kevin_lee_lottery!A:K",
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
+                body={"values": rows_to_copy},
+            ).execute()
 
 
 def _cell(row: list[str], index: int) -> str:

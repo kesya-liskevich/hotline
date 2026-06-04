@@ -141,6 +141,7 @@ class KevinTrainingRegistration:
     full_name: str = ""
     phone: str = ""
     age: str = ""
+    participation_type: str = "lottery"
     status: RegistrationStatus = RegistrationStatus.SUBMITTED
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -154,6 +155,7 @@ class KevinTrainingRegistration:
             self.phone,
             self.age,
             "kevin_lee_training",
+            self.participation_type,
             self.status.value,
             self.created_at,
             self.updated_at,

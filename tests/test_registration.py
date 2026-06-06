@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
-from hotline_bot.handlers import _cancel_buttons, _workshop_by_number
+from hotline_bot.handlers import _cancel_buttons, _is_workshop_closed, _workshop_by_number, _workshops_menu_text
 from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
@@ -219,6 +219,18 @@ class RegistrationTest(unittest.TestCase):
         self.assertEqual(_workshop_by_number(str(len(WORKSHOPS))), WORKSHOPS[-1])
         self.assertIsNone(_workshop_by_number("0"))
         self.assertIsNone(_workshop_by_number("abc"))
+
+    def test_fifth_workshop_is_closed(self) -> None:
+        workshop = _workshop_by_number("5")
+
+        self.assertIsNotNone(workshop)
+        assert workshop is not None
+        self.assertTrue(_is_workshop_closed(workshop))
+        self.assertIn(
+            "5. 12 июня, пятница, 18:00 — Практический воркшоп для тренеров по роликам "
+            "(регистрация закрыта, места закончились)",
+            _workshops_menu_text(),
+        )
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

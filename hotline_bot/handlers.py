@@ -120,6 +120,8 @@ KEVIN_TRAINING_TEXT = (
     "🔥 Розыгрыш бесплатного занятия (3 места)\n"
     "🎟 Участие на платной основе (4500 ₽)"
 )
+CLOSED_WORKSHOP_IDS = {"fri_trainers"}
+CLOSED_WORKSHOP_MESSAGE = "К сожалению, регистрация закрыта, места закончились."
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
 
 
@@ -213,6 +215,11 @@ def build_router(
         if workshop is None:
             await callback.answer("Мастер-класс не найден", show_alert=True)
             return
+        if _is_workshop_closed(workshop):
+            await state.clear()
+            await callback.message.answer(CLOSED_WORKSHOP_MESSAGE, reply_markup=workshops_keyboard())
+            await callback.answer()
+            return
         await _start_workshop_registration(callback.message, state, workshop, callback.from_user.id, callback.from_user.username)
         await callback.answer()
 
@@ -222,6 +229,11 @@ def build_router(
         if workshop is None:
             await callback.answer("Мастер-класс не найден", show_alert=True)
             return
+        if _is_workshop_closed(workshop):
+            await state.clear()
+            await callback.message.answer(CLOSED_WORKSHOP_MESSAGE, reply_markup=workshops_keyboard())
+            await callback.answer()
+            return
         await _start_workshop_registration(callback.message, state, workshop, callback.from_user.id, callback.from_user.username)
         await callback.answer()
 
@@ -230,6 +242,10 @@ def build_router(
         workshop = _workshop_by_number(message.text or "")
         if workshop is None:
             await message.answer("Введите номер мастер-класса из списка")
+            return
+        if _is_workshop_closed(workshop):
+            await state.clear()
+            await message.answer(CLOSED_WORKSHOP_MESSAGE, reply_markup=workshops_keyboard())
             return
         await _start_workshop_registration(message, state, workshop, message.from_user.id, message.from_user.username)
 
@@ -727,7 +743,8 @@ def _workshop_by_id(workshop_id: str) -> Workshop | None:
 def _workshops_menu_text() -> str:
     lines = ["Выберите мастер-класс или лекцию:", ""]
     for index, workshop in enumerate(WORKSHOPS, start=1):
-        lines.append(f"{index}. {workshop.date_text} — {workshop.title}")
+        closed_note = " (регистрация закрыта, места закончились)" if _is_workshop_closed(workshop) else ""
+        lines.append(f"{index}. {workshop.date_text} — {workshop.title}{closed_note}")
     lines.extend(["", "Введите номер мастер-класса одной цифрой"])
     return "\n".join(lines)
 
@@ -740,6 +757,10 @@ def _workshop_by_number(value: str) -> Workshop | None:
     if index < 1 or index > len(WORKSHOPS):
         return None
     return WORKSHOPS[index - 1]
+
+
+def _is_workshop_closed(workshop: Workshop) -> bool:
+    return workshop.workshop_id in CLOSED_WORKSHOP_IDS
 
 
 async def _start_workshop_registration(

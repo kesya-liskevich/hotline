@@ -21,6 +21,7 @@ from hotline_bot.keyboards import (
     edit_keyboard,
     kevin_training_options_keyboard,
     main_menu,
+    passport_skip_keyboard,
     registrations_keyboard,
     rules_ack_keyboard,
     skating_type_keyboard,
@@ -107,6 +108,11 @@ RULES_TEXT = (
 MINOR_UNDER_14_CONSENT_TEXT = (
     "Пожалуйста, заполните <a href=\"https://docs.google.com/document/d/10I1iilxi5bSJNJlmgJWQ4OEHFz-UL8CrqeuDfS9Z0z0/edit?usp=sharing\">Согласие об отказе претензий</a> и отправьте в чат его фото. "
     "Убедитесь, что текст читаем и в кадр попали все поля документа"
+)
+PASSPORT_SKIP_NOTICE = (
+    "<i>Важно: регистрацию можно завершить без загрузки паспорта. В этом случае перед "
+    "соревнованиями необходимо подойти на ресепшен скейт-парка и предъявить документ для "
+    "подтверждения личности участника.</i>"
 )
 KEVIN_TRAINING_TEXT = (
     "🇰🇷 Тренировка с Kevin Lee\n\n"
@@ -347,8 +353,18 @@ def build_router(
             await _ask_minor_consent(message, settings, age_value)
             await state.set_state(CompetitionForm.consent)
             return
-        await message.answer("Отправьте фото или файл паспорта: страницы 2-3")
+        await _ask_passport(message)
         await state.set_state(CompetitionForm.passport)
+
+    @router.callback_query(CompetitionForm.passport, F.data == "document:skip:passport")
+    async def skip_passport(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.update_data(
+            passport_file_url="",
+            passport_media_group_id=None,
+            passport_media_count=0,
+        )
+        await _continue_after_passport(callback.message, state, settings)
+        await callback.answer()
 
     @router.message(CompetitionForm.passport, F.photo | F.document)
     async def passport_file(message: Message, state: FSMContext) -> None:
@@ -366,20 +382,11 @@ def build_router(
             passport_media_group_id=message.media_group_id,
             passport_media_count=1,
         )
-        data = await state.get_data()
-        if data.get("editing_field") == "adult_documents":
-            await _ask_consent_for_age(message, settings, _state_age(data))
-            await state.update_data(editing_field="adult_consent")
-            await state.set_state(CompetitionForm.consent)
-            return
-        if await _finish_edit_if_needed(message, state):
-            return
-        await _ask_consent_for_age(message, settings, _state_age(data))
-        await state.set_state(CompetitionForm.consent)
+        await _continue_after_passport(message, state, settings)
 
     @router.message(CompetitionForm.passport)
     async def passport_not_file(message: Message) -> None:
-        await message.answer("Пожалуйста, отправьте фото или файл паспорта")
+        await _ask_passport(message)
 
     @router.message(CompetitionForm.consent, F.photo | F.document)
     async def consent_file(message: Message, state: FSMContext) -> None:
@@ -517,6 +524,8 @@ def build_router(
         elif field == "consent":
             data = await state.get_data()
             await _ask_consent_for_age(callback.message, settings, _state_age(data))
+        elif field == "passport":
+            await _ask_passport(callback.message)
         else:
             await callback.message.answer(prompt)
         await state.set_state(next_state)
@@ -613,6 +622,16 @@ async def _send_welcome(message: Message) -> None:
     await message.answer(WELCOME_TEXT, reply_markup=main_menu())
 
 
+async def _ask_passport(message: Message, prefix: str = "") -> None:
+    prompt = "Отправьте фото или файл паспорта: страницы 2-3"
+    text = f"{prefix}\n\n{prompt}" if prefix else prompt
+    await message.answer(
+        f"{text}\n\n{PASSPORT_SKIP_NOTICE}",
+        parse_mode="HTML",
+        reply_markup=passport_skip_keyboard(),
+    )
+
+
 async def _ask_adult_consent(message: Message, settings: Settings) -> None:
     await message.answer(CONSENT_UPLOAD_TEXT, parse_mode="HTML")
 
@@ -646,6 +665,23 @@ async def _ask_minor_consent(message: Message, settings: Settings, age_value: in
         "паспорт ребенка и законного представителя."
     )
     await message.answer(text, parse_mode="HTML")
+
+
+async def _continue_after_passport(
+    message: Message,
+    state: FSMContext,
+    settings: Settings,
+) -> None:
+    data = await state.get_data()
+    if data.get("editing_field") == "adult_documents":
+        await _ask_consent_for_age(message, settings, _state_age(data))
+        await state.update_data(editing_field="adult_consent")
+        await state.set_state(CompetitionForm.consent)
+        return
+    if await _finish_edit_if_needed(message, state):
+        return
+    await _ask_consent_for_age(message, settings, _state_age(data))
+    await state.set_state(CompetitionForm.consent)
 
 
 async def _send_registrations(
@@ -904,7 +940,7 @@ async def _handle_age_edit(
         passport_media_group_id=None,
         passport_media_count=0,
     )
-    await message.answer("Возраст изменен. Отправьте фото или файл паспорта: страницы 2-3")
+    await _ask_passport(message, "Возраст изменен.")
     await state.update_data(editing_field="adult_documents")
     await state.set_state(CompetitionForm.passport)
 

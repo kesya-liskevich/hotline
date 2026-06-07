@@ -53,6 +53,19 @@ def rules_ack_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def passport_skip_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Пропустить пункт",
+                    callback_data="document:skip:passport",
+                )
+            ],
+        ]
+    )
+
+
 def edit_keyboard(is_minor: bool) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text="ФИО", callback_data="edit:full_name")],

@@ -3,7 +3,14 @@ import unittest
 from pathlib import Path
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
-from hotline_bot.handlers import _cancel_buttons, _is_workshop_closed, _workshop_by_number, _workshops_menu_text
+from hotline_bot.handlers import (
+    PASSPORT_SKIP_NOTICE,
+    _cancel_buttons,
+    _is_workshop_closed,
+    _workshop_by_number,
+    _workshops_menu_text,
+)
+from hotline_bot.keyboards import passport_skip_keyboard
 from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
@@ -259,6 +266,15 @@ class RegistrationTest(unittest.TestCase):
         )
 
         self.assertEqual([item.telegram_id for item in recipients], [123])
+
+    def test_passport_step_can_be_skipped(self) -> None:
+        keyboard = passport_skip_keyboard()
+        button = keyboard.inline_keyboard[0][0]
+
+        self.assertEqual(button.text, "Пропустить пункт")
+        self.assertEqual(button.callback_data, "document:skip:passport")
+        self.assertIn("регистрацию можно завершить без загрузки паспорта", PASSPORT_SKIP_NOTICE)
+        self.assertIn("подтверждения личности участника", PASSPORT_SKIP_NOTICE)
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

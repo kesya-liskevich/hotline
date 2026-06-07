@@ -279,11 +279,13 @@ class RegistrationTest(unittest.TestCase):
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()
 
-        self.assertIn("ПРОГРАММА ФЕСТИВАЛЯ «ГОРЯЧАЯ ЛИНИЯ»", text)
-        self.assertIn("8 июня, понедельник, 18:00", text)
-        self.assertIn("12 июня, пятница — Квалификации", text)
-        self.assertIn("14 июня, воскресенье — Финалы Park", text)
-        self.assertIn("Eazy Money", text)
+        self.assertIn("📅 8 июня, понедельник", text)
+        self.assertIn("Большая открытая тренировка", text)
+        self.assertIn("Прессейшн & Cash for Tricks", text)
+        self.assertIn("День 1 соревнований", text)
+        self.assertIn("STREET — квалификации: женщины, мужчины PRO", text)
+        self.assertIn("PARK — контест: дети, женщины, мужчины AM/PRO", text)
+        self.assertIn("Автозаводская, 31Б", text)
         self.assertNotIn("Дети до 18 лет", text)
         self.assertNotIn("Air", text)
 

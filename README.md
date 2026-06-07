@@ -60,3 +60,32 @@ docker run --env-file .env -v "$PWD:/app" hotline-registration-bot
 python3 -m unittest discover -s tests
 python3 -m compileall hotline_bot tests
 ```
+
+## Рассылка на мастер-класс 8 июня
+
+Сначала проверить двух тестовых получателей без отправки:
+
+```bash
+python3 scripts/broadcast_monday_workshop.py
+```
+
+Отправить тест двум указанным в скрипте аккаунтам:
+
+```bash
+python3 scripts/broadcast_monday_workshop.py --send
+```
+
+Проверить всех активных участников мастер-класса без отправки:
+
+```bash
+python3 scripts/broadcast_monday_workshop.py --all
+```
+
+Массовая отправка всем активным участникам:
+
+```bash
+python3 scripts/broadcast_monday_workshop.py --all --send
+```
+
+Получатели читаются из листа `workshops`. Учитывается последняя строка каждой заявки,
+отменённые записи исключаются, повторные регистрации одного Telegram ID не дублируют рассылку.

@@ -7,6 +7,7 @@ from hotline_bot.handlers import _cancel_buttons, _is_workshop_closed, _workshop
 from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
+from scripts.broadcast_monday_workshop import active_recipients
 
 
 def make_registration() -> Registration:
@@ -231,6 +232,33 @@ class RegistrationTest(unittest.TestCase):
             "(регистрация закрыта, места закончились)",
             _workshops_menu_text(),
         )
+
+    def test_workshop_broadcast_uses_only_active_unique_recipients(self) -> None:
+        active = WorkshopRegistration(
+            telegram_id=123,
+            telegram_username="kesyaliskevich",
+            workshop_id="mon_fsk_aggressive",
+            status=RegistrationStatus.SUBMITTED,
+        )
+        duplicate = WorkshopRegistration(
+            telegram_id=123,
+            telegram_username="kesyaliskevich",
+            workshop_id="mon_fsk_aggressive",
+            status=RegistrationStatus.SUBMITTED,
+        )
+        cancelled = WorkshopRegistration(
+            telegram_id=456,
+            telegram_username="Because_why_not",
+            workshop_id="mon_fsk_aggressive",
+            status=RegistrationStatus.CANCELLED,
+        )
+
+        recipients = active_recipients(
+            [active, duplicate, cancelled],
+            {"kesyaliskevich", "Because_why_not"},
+        )
+
+        self.assertEqual([item.telegram_id for item in recipients], [123])
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

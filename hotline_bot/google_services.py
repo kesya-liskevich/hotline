@@ -27,6 +27,9 @@ class SheetsClient(Protocol):
     def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
         ...
 
+    def list_workshop_registrations(self, workshop_id: str) -> list[WorkshopRegistration]:
+        ...
+
     def update_registration(self, registration: Registration) -> None:
         ...
 
@@ -62,6 +65,9 @@ class NullSheetsClient:
         return []
 
     def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
+        return []
+
+    def list_workshop_registrations(self, workshop_id: str) -> list[WorkshopRegistration]:
         return []
 
     def update_registration(self, registration: Registration) -> None:
@@ -176,6 +182,15 @@ class GoogleSheetsClient:
         for row in rows:
             registration = _workshop_registration_from_sheet_row(row)
             if registration and registration.telegram_id == telegram_id:
+                latest[registration.registration_id] = registration
+        return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
+
+    def list_workshop_registrations(self, workshop_id: str) -> list[WorkshopRegistration]:
+        rows = self._read_rows("workshops!A2:M")
+        latest: dict[str, WorkshopRegistration] = {}
+        for row in rows:
+            registration = _workshop_registration_from_sheet_row(row)
+            if registration and registration.workshop_id == workshop_id:
                 latest[registration.registration_id] = registration
         return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
 

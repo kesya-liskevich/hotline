@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
@@ -28,6 +29,16 @@ class SheetsClient(Protocol):
         ...
 
     def list_workshop_registrations(self, workshop_id: str) -> list[WorkshopRegistration]:
+        ...
+
+    def append_workshop_attendance(
+        self,
+        workshop_id: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+    ) -> None:
         ...
 
     def update_registration(self, registration: Registration) -> None:
@@ -69,6 +80,16 @@ class NullSheetsClient:
 
     def list_workshop_registrations(self, workshop_id: str) -> list[WorkshopRegistration]:
         return []
+
+    def append_workshop_attendance(
+        self,
+        workshop_id: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+    ) -> None:
+        return None
 
     def update_registration(self, registration: Registration) -> None:
         return None
@@ -194,6 +215,31 @@ class GoogleSheetsClient:
                 latest[registration.registration_id] = registration
         return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
 
+    def append_workshop_attendance(
+        self,
+        workshop_id: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+    ) -> None:
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range="workshop_attendance!A:F",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={
+                "values": [[
+                    workshop_id,
+                    str(telegram_id),
+                    telegram_username or "",
+                    full_name,
+                    response,
+                    datetime.now(timezone.utc).isoformat(),
+                ]]
+            },
+        ).execute()
+
     def update_registration(self, registration: Registration) -> None:
         # Append-only history is safer for the first MVP. The latest row by
         # registration_id/status is the source of truth for manual reporting.
@@ -225,6 +271,7 @@ class GoogleSheetsClient:
                 "kevin_lee",
                 "kevin_lee_lottery",
                 "kevin_lee_paid",
+                "workshop_attendance",
             )
             if title not in existing_titles
         ]
@@ -264,6 +311,21 @@ class GoogleSheetsClient:
                 valueInputOption="RAW",
                 body={"values": [KEVIN_TRAINING_HEADERS]},
             ).execute()
+        self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range="workshop_attendance!A1:F1",
+            valueInputOption="RAW",
+            body={
+                "values": [[
+                    "workshop_id",
+                    "telegram_id",
+                    "telegram_username",
+                    "full_name",
+                    "response",
+                    "responded_at",
+                ]]
+            },
+        ).execute()
         self._migrate_legacy_kevin_lottery_rows()
 
     def _migrate_legacy_kevin_lottery_rows(self) -> None:

@@ -10,7 +10,7 @@ from hotline_bot.handlers import (
     _workshop_by_number,
     _workshops_menu_text,
 )
-from hotline_bot.keyboards import passport_skip_keyboard
+from hotline_bot.keyboards import passport_skip_keyboard, workshop_attendance_keyboard
 from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
@@ -240,6 +240,18 @@ class RegistrationTest(unittest.TestCase):
             _workshops_menu_text(),
         )
 
+    def test_second_workshop_is_closed(self) -> None:
+        workshop = _workshop_by_number("2")
+
+        self.assertIsNotNone(workshop)
+        assert workshop is not None
+        self.assertTrue(_is_workshop_closed(workshop))
+        self.assertIn(
+            "2. 9 июня, вторник, 18:00 — ОФП и подготовка тела к катанию "
+            "(регистрация закрыта, места закончились)",
+            _workshops_menu_text(),
+        )
+
     def test_workshop_broadcast_uses_only_active_unique_recipients(self) -> None:
         active = WorkshopRegistration(
             telegram_id=123,
@@ -275,6 +287,15 @@ class RegistrationTest(unittest.TestCase):
         self.assertEqual(button.callback_data, "document:skip:passport")
         self.assertIn("регистрацию можно завершить без загрузки паспорта", PASSPORT_SKIP_NOTICE)
         self.assertIn("подтверждения личности участника", PASSPORT_SKIP_NOTICE)
+
+    def test_workshop_attendance_buttons_have_expected_callbacks(self) -> None:
+        keyboard = workshop_attendance_keyboard("tue_ofp")
+        buttons = keyboard.inline_keyboard[0]
+
+        self.assertEqual(buttons[0].text, "приду")
+        self.assertEqual(buttons[0].callback_data, "workshop:attendance:tue_ofp:yes")
+        self.assertEqual(buttons[1].text, "не смогу прийти")
+        self.assertEqual(buttons[1].callback_data, "workshop:attendance:tue_ofp:no")
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

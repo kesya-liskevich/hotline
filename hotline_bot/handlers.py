@@ -126,7 +126,7 @@ KEVIN_TRAINING_TEXT = (
     "🔥 Розыгрыш бесплатного занятия (3 места)\n"
     "🎟 Участие на платной основе (4500 ₽)"
 )
-CLOSED_WORKSHOP_IDS = {"fri_trainers"}
+CLOSED_WORKSHOP_IDS = {"tue_ofp", "fri_trainers"}
 CLOSED_WORKSHOP_MESSAGE = "К сожалению, регистрация закрыта, места закончились."
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
 
@@ -286,6 +286,37 @@ def build_router(
     async def program(callback: CallbackQuery) -> None:
         await callback.message.answer(program_text(), reply_markup=main_menu())
         await callback.answer()
+
+    @router.callback_query(F.data.startswith("workshop:attendance:"))
+    async def workshop_attendance(callback: CallbackQuery) -> None:
+        parts = callback.data.split(":")
+        if len(parts) != 4 or parts[3] not in {"yes", "no"}:
+            await callback.answer("Не удалось сохранить ответ", show_alert=True)
+            return
+        workshop_id, response = parts[2], parts[3]
+        registrations = sheets.list_workshop_registrations(workshop_id)
+        registration = next((
+            item
+            for item in registrations
+            if item.telegram_id == callback.from_user.id
+            and item.status == RegistrationStatus.SUBMITTED
+        ), None)
+        is_registered = registration is not None
+        if not is_registered:
+            await callback.answer("Активная запись на мастер-класс не найдена", show_alert=True)
+            return
+        assert registration is not None
+        sheets.append_workshop_attendance(
+            workshop_id,
+            callback.from_user.id,
+            callback.from_user.username,
+            registration.full_name,
+            response,
+        )
+        await callback.message.edit_reply_markup(reply_markup=None)
+        answer_text = "Спасибо! Будем ждать вас 👊" if response == "yes" else "Спасибо, что предупредили."
+        await callback.message.answer(answer_text)
+        await callback.answer("Ответ сохранён")
 
     @router.callback_query(F.data == "competition:start")
     async def competition_start(callback: CallbackQuery, state: FSMContext) -> None:

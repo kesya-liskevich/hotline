@@ -7,6 +7,7 @@ from hotline_bot.handlers import (
     PASSPORT_SKIP_NOTICE,
     _cancel_buttons,
     _is_workshop_closed,
+    _workshop_attendance_response_text,
     _workshop_by_number,
     _workshops_menu_text,
 )
@@ -296,6 +297,14 @@ class RegistrationTest(unittest.TestCase):
         self.assertEqual(buttons[0].callback_data, "workshop:attendance:tue_ofp:yes")
         self.assertEqual(buttons[1].text, "не смогу прийти")
         self.assertEqual(buttons[1].callback_data, "workshop:attendance:tue_ofp:no")
+        self.assertEqual(
+            _workshop_attendance_response_text("yes"),
+            "Супер, ждём вас на тренировке!",
+        )
+        self.assertEqual(
+            _workshop_attendance_response_text("no"),
+            "Окей, ваша запись на тренировку отменена.",
+        )
 
     def test_program_text_has_current_festival_schedule(self) -> None:
         text = program_text()

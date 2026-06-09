@@ -293,30 +293,47 @@ def build_router(
         if len(parts) != 4 or parts[3] not in {"yes", "no"}:
             await callback.answer("Не удалось сохранить ответ", show_alert=True)
             return
+        await callback.answer()
         workshop_id, response = parts[2], parts[3]
-        registrations = sheets.list_workshop_registrations(workshop_id)
-        registration = next((
+        try:
+            registrations = sheets.list_workshop_registrations(workshop_id)
+        except Exception:
+            logging.exception("Could not load workshop registrations for attendance response")
+            await callback.message.answer("Не удалось сохранить ответ. Пожалуйста, попробуйте ещё раз.")
+            return
+        active_registrations = [
             item
             for item in registrations
             if item.telegram_id == callback.from_user.id
             and item.status == RegistrationStatus.SUBMITTED
-        ), None)
-        is_registered = registration is not None
-        if not is_registered:
-            await callback.answer("Активная запись на мастер-класс не найдена", show_alert=True)
+        ]
+        if not active_registrations:
+            await callback.message.answer("Активная запись на мастер-класс не найдена.")
             return
-        assert registration is not None
-        sheets.append_workshop_attendance(
-            workshop_id,
-            callback.from_user.id,
-            callback.from_user.username,
-            registration.full_name,
-            response,
-        )
-        await callback.message.edit_reply_markup(reply_markup=None)
-        answer_text = "Спасибо! Будем ждать вас 👊" if response == "yes" else "Спасибо, что предупредили."
-        await callback.message.answer(answer_text)
-        await callback.answer("Ответ сохранён")
+
+        registration = active_registrations[0]
+        if response == "no":
+            for item in active_registrations:
+                item.mark_cancelled()
+                repo.save_workshop(item)
+                sheets.update_workshop_registration(item)
+
+        try:
+            sheets.append_workshop_attendance(
+                workshop_id,
+                callback.from_user.id,
+                callback.from_user.username,
+                registration.full_name,
+                response,
+            )
+        except Exception:
+            logging.exception("Could not append workshop attendance response")
+
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logging.exception("Could not remove workshop attendance buttons")
+        await callback.message.answer(_workshop_attendance_response_text(response))
 
     @router.callback_query(F.data == "competition:start")
     async def competition_start(callback: CallbackQuery, state: FSMContext) -> None:
@@ -801,6 +818,12 @@ def _truncate_button_text(value: str, limit: int = 58) -> str:
     if len(value) <= limit:
         return value
     return f"{value[:limit - 1]}…"
+
+
+def _workshop_attendance_response_text(response: str) -> str:
+    if response == "no":
+        return "Окей, ваша запись на тренировку отменена."
+    return "Супер, ждём вас на тренировке!"
 
 
 def _workshop_by_id(workshop_id: str) -> Workshop | None:

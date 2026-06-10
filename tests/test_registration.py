@@ -253,6 +253,18 @@ class RegistrationTest(unittest.TestCase):
             _workshops_menu_text(),
         )
 
+    def test_third_workshop_is_closed(self) -> None:
+        workshop = _workshop_by_number("3")
+
+        self.assertIsNotNone(workshop)
+        assert workshop is not None
+        self.assertTrue(_is_workshop_closed(workshop))
+        self.assertIn(
+            "3. 10 июня, среда, 18:00 — Ракурс решает: как увидеть своё катание со стороны "
+            "(регистрация закрыта, места закончились)",
+            _workshops_menu_text(),
+        )
+
     def test_workshop_broadcast_uses_only_active_unique_recipients(self) -> None:
         active = WorkshopRegistration(
             telegram_id=123,

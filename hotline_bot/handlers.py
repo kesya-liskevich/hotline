@@ -126,7 +126,7 @@ KEVIN_TRAINING_TEXT = (
     "🔥 Розыгрыш бесплатного занятия (3 места)\n"
     "🎟 Участие на платной основе (4500 ₽)"
 )
-CLOSED_WORKSHOP_IDS = {"tue_ofp", "fri_trainers"}
+CLOSED_WORKSHOP_IDS = {"tue_ofp", "wed_video", "fri_trainers"}
 CLOSED_WORKSHOP_MESSAGE = "К сожалению, регистрация закрыта, места закончились."
 FESTIVAL_AGE_DATE = date(2026, 6, 12)
 

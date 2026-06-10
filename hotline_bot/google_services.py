@@ -406,7 +406,7 @@ def _workshop_registration_from_sheet_row(row: list[str]) -> WorkshopRegistratio
 
 
 class GoogleDriveClient:
-    SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
 
     def __init__(
         self,

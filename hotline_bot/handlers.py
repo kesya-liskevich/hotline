@@ -337,6 +337,7 @@ def build_router(
 
     @router.callback_query(F.data == "competition:start")
     async def competition_start(callback: CallbackQuery, state: FSMContext) -> None:
+        await _safe_callback_answer(callback)
         await state.clear()
         registration = Registration(
             telegram_id=callback.from_user.id,
@@ -349,7 +350,6 @@ def build_router(
         )
         await callback.message.answer("Введите ФИО полностью: имя, фамилия, отчество")
         await state.set_state(CompetitionForm.full_name)
-        await callback.answer()
 
     @router.message(CompetitionForm.full_name)
     async def full_name(message: Message, state: FSMContext) -> None:
@@ -824,6 +824,17 @@ def _workshop_attendance_response_text(response: str) -> str:
     if response == "no":
         return "Окей, ваша запись на тренировку отменена."
     return "Супер, ждём вас на тренировке!"
+
+
+async def _safe_callback_answer(
+    callback: CallbackQuery,
+    text: str | None = None,
+    show_alert: bool = False,
+) -> None:
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+    except Exception:
+        logging.warning("Could not answer callback query", exc_info=True)
 
 
 def _workshop_by_id(workshop_id: str) -> Workshop | None:

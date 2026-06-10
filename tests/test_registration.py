@@ -1,12 +1,14 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
 from hotline_bot.handlers import (
     PASSPORT_SKIP_NOTICE,
     _cancel_buttons,
     _is_workshop_closed,
+    _safe_callback_answer,
     _workshop_attendance_response_text,
     _workshop_by_number,
     _workshops_menu_text,
@@ -16,6 +18,16 @@ from hotline_bot.models import KevinTrainingRegistration, Registration, Registra
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
 from scripts.broadcast_monday_workshop import active_recipients
+
+
+class CallbackAnswerTest(unittest.IsolatedAsyncioTestCase):
+    async def test_callback_network_error_does_not_escape(self) -> None:
+        callback = AsyncMock()
+        callback.answer.side_effect = RuntimeError("network unavailable")
+
+        await _safe_callback_answer(callback)
+
+        callback.answer.assert_awaited_once_with(text=None, show_alert=False)
 
 
 def make_registration() -> Registration:

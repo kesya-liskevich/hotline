@@ -25,6 +25,9 @@ class SheetsClient(Protocol):
     def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
         ...
 
+    def list_registrations_with_telegram_files(self) -> list[Registration]:
+        ...
+
     def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
         ...
 
@@ -73,6 +76,9 @@ class NullSheetsClient:
         return None
 
     def list_registrations_by_user(self, telegram_id: int) -> list[Registration]:
+        return []
+
+    def list_registrations_with_telegram_files(self) -> list[Registration]:
         return []
 
     def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
@@ -196,6 +202,23 @@ class GoogleSheetsClient:
             if registration and registration.telegram_id == telegram_id:
                 latest[registration.registration_id] = registration
         return sorted(latest.values(), key=lambda item: item.created_at, reverse=True)
+
+    def list_registrations_with_telegram_files(self) -> list[Registration]:
+        rows = self._read_rows("competitions!A2:S")
+        latest: dict[str, Registration] = {}
+        for row in rows:
+            registration = _registration_from_sheet_row(row)
+            if registration:
+                latest[registration.registration_id] = registration
+        return [
+            registration
+            for registration in latest.values()
+            if registration.status == RegistrationStatus.SUBMITTED
+            and (
+                "telegram:" in registration.passport_file_url
+                or "telegram:" in registration.consent_file_url
+            )
+        ]
 
     def list_workshop_registrations_by_user(self, telegram_id: int) -> list[WorkshopRegistration]:
         rows = self._read_rows("workshops!A2:M")

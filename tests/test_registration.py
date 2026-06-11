@@ -18,6 +18,7 @@ from hotline_bot.models import KevinTrainingRegistration, Registration, Registra
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
 from scripts.broadcast_monday_workshop import active_recipients
+from scripts.broadcast_presession import unique_recipients
 
 
 class CallbackAnswerTest(unittest.IsolatedAsyncioTestCase):
@@ -28,6 +29,24 @@ class CallbackAnswerTest(unittest.IsolatedAsyncioTestCase):
         await _safe_callback_answer(callback)
 
         callback.answer.assert_awaited_once_with(text=None, show_alert=False)
+
+
+class PresessionBroadcastTest(unittest.TestCase):
+    def test_recipients_are_unique_across_all_registration_sheets(self) -> None:
+        rows = {
+            "competitions": [["competition-1", "123", "first"]],
+            "workshops": [
+                ["workshop-1", "123", "first"],
+                ["workshop-2", "456", "second"],
+            ],
+            "kevin_lee": [],
+            "kevin_lee_lottery": [["kevin-1", "789", "third"]],
+            "kevin_lee_paid": [["kevin-2", "456", "second"]],
+        }
+
+        recipients = unique_recipients(rows)
+
+        self.assertEqual([item.telegram_id for item in recipients], [123, 456, 789])
 
 
 def make_registration() -> Registration:

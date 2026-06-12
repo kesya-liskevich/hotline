@@ -380,14 +380,10 @@ def build_router(
             await callback.message.edit_reply_markup(reply_markup=None)
         except Exception:
             logging.exception("Could not remove Kevin Lee attendance buttons")
-        if response == "yes":
-            await callback.message.answer(
-                "Супер, участие подтверждено! Ждём тебя на тренировке 🔥"
-            )
-        else:
-            await callback.message.answer(
-                "Поняли, спасибо, что предупредили. Отметили, что ты не сможешь прийти."
-            )
+        await callback.message.answer(
+            _kevin_group_attendance_response_text(response),
+            reply_markup=workshops_keyboard(),
+        )
 
     @router.callback_query(F.data == "competition:start")
     async def competition_start(callback: CallbackQuery, state: FSMContext) -> None:
@@ -878,6 +874,12 @@ def _workshop_attendance_response_text(response: str) -> str:
     if response == "no":
         return "Окей, ваша запись на тренировку отменена."
     return "Супер, ждём вас на тренировке!"
+
+
+def _kevin_group_attendance_response_text(response: str) -> str:
+    if response == "no":
+        return "Окей, принято! Спасибо, что предупредили."
+    return "Супер, будем ждать вас на тренировке!"
 
 
 async def _safe_callback_answer(

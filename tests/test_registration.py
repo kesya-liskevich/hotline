@@ -8,6 +8,7 @@ from hotline_bot.handlers import (
     PASSPORT_SKIP_NOTICE,
     _cancel_buttons,
     _is_workshop_closed,
+    _kevin_group_attendance_response_text,
     _safe_callback_answer,
     _workshop_attendance_response_text,
     _workshop_by_number,
@@ -83,6 +84,14 @@ class KevinLeeGroupsTest(unittest.TestCase):
         self.assertEqual(
             buttons[1].callback_data,
             "kevin:attendance:beginner:no",
+        )
+        self.assertEqual(
+            _kevin_group_attendance_response_text("yes"),
+            "Супер, будем ждать вас на тренировке!",
+        )
+        self.assertEqual(
+            _kevin_group_attendance_response_text("no"),
+            "Окей, принято! Спасибо, что предупредили.",
         )
 
 

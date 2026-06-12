@@ -120,6 +120,23 @@ def workshop_attendance_keyboard(workshop_id: str) -> InlineKeyboardMarkup:
     )
 
 
+def kevin_group_attendance_keyboard(group: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Приду",
+                    callback_data=f"kevin:attendance:{group}:yes",
+                ),
+                InlineKeyboardButton(
+                    text="Не смогу прийти",
+                    callback_data=f"kevin:attendance:{group}:no",
+                ),
+            ],
+        ]
+    )
+
+
 def kevin_training_options_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

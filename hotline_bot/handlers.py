@@ -14,11 +14,13 @@ from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from hotline_bot.config import Settings
 from hotline_bot.google_services import DriveClient, SheetsClient
+from hotline_bot.kevin_groups import grouped_participants
 from hotline_bot.keyboards import (
     categories_keyboard,
     confirmation_keyboard,
     disciplines_keyboard,
     edit_keyboard,
+    kevin_group_attendance_keyboard,
     kevin_training_options_keyboard,
     main_menu,
     passport_skip_keyboard,
@@ -334,6 +336,58 @@ def build_router(
         except Exception:
             logging.exception("Could not remove workshop attendance buttons")
         await callback.message.answer(_workshop_attendance_response_text(response))
+
+    @router.callback_query(F.data.startswith("kevin:attendance:"))
+    async def kevin_group_attendance(callback: CallbackQuery) -> None:
+        parts = callback.data.split(":")
+        if (
+            len(parts) != 4
+            or parts[2] not in {"beginner", "pro"}
+            or parts[3] not in {"yes", "no"}
+        ):
+            await _safe_callback_answer(
+                callback,
+                "Не удалось сохранить ответ",
+                show_alert=True,
+            )
+            return
+        await _safe_callback_answer(callback)
+        group, response = parts[2], parts[3]
+        try:
+            pro, beginners, _ = grouped_participants(sheets.kevin_lottery_rows())
+            participants = beginners if group == "beginner" else pro
+            matched = [
+                item
+                for item in participants
+                if item.telegram_id == callback.from_user.id
+            ]
+            full_name = ", ".join(item.full_name for item in matched) or "Тестовый получатель"
+            sheets.append_kevin_group_attendance(
+                group,
+                callback.from_user.id,
+                callback.from_user.username,
+                full_name,
+                response,
+                is_test=not matched,
+            )
+        except Exception:
+            logging.exception("Could not save Kevin Lee group attendance")
+            await callback.message.answer(
+                "Не удалось сохранить ответ. Пожалуйста, попробуйте ещё раз."
+            )
+            return
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logging.exception("Could not remove Kevin Lee attendance buttons")
+        if response == "yes":
+            await callback.message.answer(
+                "Супер, участие подтверждено! Ждём тебя на тренировке 🔥"
+            )
+        else:
+            await callback.message.answer(
+                "Поняли, спасибо, что предупредили. Отметили, что ты не сможешь прийти."
+            )
 
     @router.callback_query(F.data == "competition:start")
     async def competition_start(callback: CallbackQuery, state: FSMContext) -> None:

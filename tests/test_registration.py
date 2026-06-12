@@ -13,12 +13,17 @@ from hotline_bot.handlers import (
     _workshop_by_number,
     _workshops_menu_text,
 )
-from hotline_bot.keyboards import passport_skip_keyboard, workshop_attendance_keyboard
+from hotline_bot.keyboards import (
+    kevin_group_attendance_keyboard,
+    passport_skip_keyboard,
+    workshop_attendance_keyboard,
+)
 from hotline_bot.models import KevinTrainingRegistration, Registration, RegistrationStatus, WorkshopRegistration
 from hotline_bot.program import CATEGORY_MEN_PRO, DISCIPLINE_BOTH, WORKSHOPS, program_text
 from hotline_bot.storage import RegistrationRepository
 from scripts.broadcast_monday_workshop import active_recipients
 from scripts.broadcast_presession import unique_recipients
+from scripts.prepare_kevin_lee_groups import grouped_participants
 
 
 class CallbackAnswerTest(unittest.IsolatedAsyncioTestCase):
@@ -47,6 +52,38 @@ class PresessionBroadcastTest(unittest.TestCase):
         recipients = unique_recipients(rows)
 
         self.assertEqual([item.telegram_id for item in recipients], [123, 456, 789])
+
+
+class KevinLeeGroupsTest(unittest.TestCase):
+    def test_grouping_deduplicates_people_but_preserves_shared_account(self) -> None:
+        rows = [
+            ["one", "262939864", "dshumkin", "Шумкин Дмитрий Михайлович"],
+            ["two", "262939864", "dshumkin", "Шумкин Дмитрий Михайлович"],
+            ["three", "262939864", "dshumkin", "Шумкина Мария Дмитриевна"],
+        ]
+
+        pro, beginners, missing = grouped_participants(rows)
+
+        self.assertEqual(len(pro), 1)
+        self.assertEqual(len(beginners), 1)
+        self.assertEqual(pro[0].telegram_id, beginners[0].telegram_id)
+        self.assertNotIn("Шумкин Дмитрий Михайлович", missing)
+        self.assertNotIn("Шумкина Мария Дмитриевна", missing)
+
+    def test_beginner_attendance_buttons_have_expected_callbacks(self) -> None:
+        keyboard = kevin_group_attendance_keyboard("beginner")
+        buttons = keyboard.inline_keyboard[0]
+
+        self.assertEqual(buttons[0].text, "Приду")
+        self.assertEqual(
+            buttons[0].callback_data,
+            "kevin:attendance:beginner:yes",
+        )
+        self.assertEqual(buttons[1].text, "Не смогу прийти")
+        self.assertEqual(
+            buttons[1].callback_data,
+            "kevin:attendance:beginner:no",
+        )
 
 
 def make_registration() -> Registration:

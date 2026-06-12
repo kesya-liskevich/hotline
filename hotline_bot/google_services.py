@@ -44,6 +44,20 @@ class SheetsClient(Protocol):
     ) -> None:
         ...
 
+    def append_kevin_group_attendance(
+        self,
+        group: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+        is_test: bool,
+    ) -> None:
+        ...
+
+    def kevin_lottery_rows(self) -> list[list[str]]:
+        ...
+
     def update_registration(self, registration: Registration) -> None:
         ...
 
@@ -96,6 +110,20 @@ class NullSheetsClient:
         response: str,
     ) -> None:
         return None
+
+    def append_kevin_group_attendance(
+        self,
+        group: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+        is_test: bool,
+    ) -> None:
+        return None
+
+    def kevin_lottery_rows(self) -> list[list[str]]:
+        return []
 
     def update_registration(self, registration: Registration) -> None:
         return None
@@ -263,6 +291,36 @@ class GoogleSheetsClient:
             },
         ).execute()
 
+    def append_kevin_group_attendance(
+        self,
+        group: str,
+        telegram_id: int,
+        telegram_username: str | None,
+        full_name: str,
+        response: str,
+        is_test: bool,
+    ) -> None:
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range="kevin_lee_beginner_attendance!A:G",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={
+                "values": [[
+                    group,
+                    str(telegram_id),
+                    telegram_username or "",
+                    full_name,
+                    response,
+                    "yes" if is_test else "no",
+                    datetime.now(timezone.utc).isoformat(),
+                ]]
+            },
+        ).execute()
+
+    def kevin_lottery_rows(self) -> list[list[str]]:
+        return self._read_rows("kevin_lee_lottery!A2:K")
+
     def update_registration(self, registration: Registration) -> None:
         # Append-only history is safer for the first MVP. The latest row by
         # registration_id/status is the source of truth for manual reporting.
@@ -295,6 +353,7 @@ class GoogleSheetsClient:
                 "kevin_lee_lottery",
                 "kevin_lee_paid",
                 "workshop_attendance",
+                "kevin_lee_beginner_attendance",
             )
             if title not in existing_titles
         ]
@@ -345,6 +404,22 @@ class GoogleSheetsClient:
                     "telegram_username",
                     "full_name",
                     "response",
+                    "responded_at",
+                ]]
+            },
+        ).execute()
+        self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range="kevin_lee_beginner_attendance!A1:G1",
+            valueInputOption="RAW",
+            body={
+                "values": [[
+                    "group",
+                    "telegram_id",
+                    "telegram_username",
+                    "full_name",
+                    "response",
+                    "is_test",
                     "responded_at",
                 ]]
             },

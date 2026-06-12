@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from aiogram import F, Router
-from aiogram.exceptions import TelegramNetworkError
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -354,6 +354,15 @@ def build_router(
         await _safe_callback_answer(callback)
         group, response = parts[2], parts[3]
         try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except TelegramBadRequest as exc:
+            if "message is not modified" in str(exc):
+                logging.info("Kevin Lee attendance response was already processed")
+                return
+            logging.exception("Could not remove Kevin Lee attendance buttons")
+        except Exception:
+            logging.exception("Could not remove Kevin Lee attendance buttons")
+        try:
             pro, beginners, _ = grouped_participants(sheets.kevin_lottery_rows())
             participants = beginners if group == "beginner" else pro
             matched = [
@@ -376,10 +385,6 @@ def build_router(
                 "Не удалось сохранить ответ. Пожалуйста, попробуйте ещё раз."
             )
             return
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            logging.exception("Could not remove Kevin Lee attendance buttons")
         await callback.message.answer(
             _kevin_group_attendance_response_text(response),
             reply_markup=workshops_keyboard(),

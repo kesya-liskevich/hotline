@@ -3,7 +3,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from hotline_bot.google_services import _registration_from_sheet_row, _workshop_registration_from_sheet_row
+from hotline_bot.google_services import (
+    _kevin_attendance_sheet_name,
+    _registration_from_sheet_row,
+    _workshop_registration_from_sheet_row,
+)
 from hotline_bot.handlers import (
     PASSPORT_SKIP_NOTICE,
     _cancel_buttons,
@@ -92,6 +96,16 @@ class KevinLeeGroupsTest(unittest.TestCase):
         self.assertEqual(
             _kevin_group_attendance_response_text("no"),
             "Окей, принято! Спасибо, что предупредили.",
+        )
+
+    def test_kevin_attendance_uses_separate_group_sheets(self) -> None:
+        self.assertEqual(
+            _kevin_attendance_sheet_name("beginner"),
+            "kevin_lee_beginner_attendance",
+        )
+        self.assertEqual(
+            _kevin_attendance_sheet_name("pro"),
+            "kevin_lee_pro_attendance",
         )
 
 

@@ -300,9 +300,10 @@ class GoogleSheetsClient:
         response: str,
         is_test: bool,
     ) -> None:
+        sheet_name = _kevin_attendance_sheet_name(group)
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee_beginner_attendance!A:G",
+            range=f"{sheet_name}!A:G",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={
@@ -354,6 +355,7 @@ class GoogleSheetsClient:
                 "kevin_lee_paid",
                 "workshop_attendance",
                 "kevin_lee_beginner_attendance",
+                "kevin_lee_pro_attendance",
             )
             if title not in existing_titles
         ]
@@ -408,22 +410,26 @@ class GoogleSheetsClient:
                 ]]
             },
         ).execute()
-        self.service.spreadsheets().values().update(
-            spreadsheetId=self.spreadsheet_id,
-            range="kevin_lee_beginner_attendance!A1:G1",
-            valueInputOption="RAW",
-            body={
-                "values": [[
-                    "group",
-                    "telegram_id",
-                    "telegram_username",
-                    "full_name",
-                    "response",
-                    "is_test",
-                    "responded_at",
-                ]]
-            },
-        ).execute()
+        for sheet_name in (
+            "kevin_lee_beginner_attendance",
+            "kevin_lee_pro_attendance",
+        ):
+            self.service.spreadsheets().values().update(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{sheet_name}!A1:G1",
+                valueInputOption="RAW",
+                body={
+                    "values": [[
+                        "group",
+                        "telegram_id",
+                        "telegram_username",
+                        "full_name",
+                        "response",
+                        "is_test",
+                        "responded_at",
+                    ]]
+                },
+            ).execute()
         self._migrate_legacy_kevin_lottery_rows()
 
     def _migrate_legacy_kevin_lottery_rows(self) -> None:
@@ -453,6 +459,14 @@ class GoogleSheetsClient:
 
 def _cell(row: list[str], index: int) -> str:
     return row[index] if len(row) > index else ""
+
+
+def _kevin_attendance_sheet_name(group: str) -> str:
+    if group == "beginner":
+        return "kevin_lee_beginner_attendance"
+    if group == "pro":
+        return "kevin_lee_pro_attendance"
+    raise ValueError(f"Unknown Kevin Lee group: {group}")
 
 
 def _registration_from_sheet_row(row: list[str]) -> Registration | None:

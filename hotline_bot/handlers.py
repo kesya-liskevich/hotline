@@ -20,6 +20,7 @@ from hotline_bot.keyboards import (
     confirmation_keyboard,
     disciplines_keyboard,
     edit_keyboard,
+    feedback_role_keyboard,
     kevin_group_attendance_keyboard,
     kevin_training_options_keyboard,
     main_menu,
@@ -89,6 +90,7 @@ class FeedbackForm(StatesGroup):
     future_ideas = State()
     recommendation = State()
     future_help = State()
+    free_feedback = State()
 
 
 EDIT_PROMPTS = {
@@ -142,9 +144,13 @@ FEEDBACK_INTRO_TEXT = (
     "👁 Спасибо, что были частью фестиваля «Горячая линия»!\n\n"
     "Нам очень важно узнать ваше мнение. Ответы помогут сделать фестиваль лучше "
     "в следующем году.\n\n"
-    "Для начала напишите, пожалуйста:\n\n"
+    "Для начала выберите, пожалуйста:\n\n"
     "Вы участник соревнований/мастер-классов или зритель?"
 )
+FEEDBACK_ROLES = {
+    "participant": "участник соревнований/мастер-классов",
+    "spectator": "зритель",
+}
 FEEDBACK_QUESTIONS = [
     (
         "weekly_format",
@@ -158,6 +164,7 @@ FEEDBACK_QUESTIONS = [
         "впечатлениями.\n"
         "Что особенно понравилось? Что можно улучшить в организации или самом "
         "формате занятий?\n\n"
+        "Мы передадим ваши отзывы Кевину лично.\n\n"
         "Если не участвовали — напишите «не участвовал».",
     ),
     (
@@ -180,9 +187,15 @@ FEEDBACK_QUESTIONS = [
     ),
     (
         "future_help",
-        "6. Хотели бы вы помочь развитию фестиваля в будущем?\n"
+        "6. Готовы ли вы помочь развитию фестиваля в будущем? Если да — чем и как?\n"
         "Например: волонтёрство, партнёрство, информационная поддержка, помощь "
         "в организации, проведение активностей или что-то другое.",
+    ),
+    (
+        "free_feedback",
+        "7. Это место для свободной обратной связи, если вы хотите поделиться "
+        "чем-то ещё.\n"
+        "Если нет — поставьте прочерк.",
     ),
 ]
 FEEDBACK_FINAL_TEXT = (
@@ -358,15 +371,29 @@ def build_router(
             telegram_id=callback.from_user.id,
             telegram_username=callback.from_user.username,
         )
-        await callback.message.answer(FEEDBACK_INTRO_TEXT)
+        await callback.message.answer(FEEDBACK_INTRO_TEXT, reply_markup=feedback_role_keyboard())
         await state.set_state(FeedbackForm.role)
         await callback.answer()
 
-    @router.message(FeedbackForm.role)
-    async def feedback_role(message: Message, state: FSMContext) -> None:
-        await state.update_data(role=_message_text(message))
-        await message.answer(_feedback_question_text("weekly_format"))
+    @router.callback_query(FeedbackForm.role, F.data.startswith("feedback:role:"))
+    async def feedback_role(callback: CallbackQuery, state: FSMContext) -> None:
+        role_key = callback.data.rsplit(":", 1)[1]
+        role = FEEDBACK_ROLES.get(role_key)
+        if role is None:
+            await callback.answer("Выберите вариант из списка", show_alert=True)
+            return
+        await state.update_data(role=role)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logging.exception("Could not remove feedback role buttons")
+        await callback.message.answer(_feedback_question_text("weekly_format"))
         await state.set_state(FeedbackForm.weekly_format)
+        await callback.answer()
+
+    @router.message(FeedbackForm.role)
+    async def feedback_role_text_fallback(message: Message) -> None:
+        await message.answer("Пожалуйста, выберите вариант кнопкой выше.")
 
     @router.message(FeedbackForm.weekly_format)
     async def feedback_weekly_format(message: Message, state: FSMContext) -> None:
@@ -400,8 +427,14 @@ def build_router(
 
     @router.message(FeedbackForm.future_help)
     async def feedback_future_help(message: Message, state: FSMContext) -> None:
-        future_help = _message_text(message)
-        await state.update_data(future_help=future_help)
+        await state.update_data(future_help=_message_text(message))
+        await message.answer(_feedback_question_text("free_feedback"))
+        await state.set_state(FeedbackForm.free_feedback)
+
+    @router.message(FeedbackForm.free_feedback)
+    async def feedback_free_feedback(message: Message, state: FSMContext) -> None:
+        free_feedback = _message_text(message)
+        await state.update_data(free_feedback=free_feedback)
         data = await state.get_data()
         try:
             sheets.append_feedback(
@@ -414,7 +447,8 @@ def build_router(
                     data.get("memorable_moment", ""),
                     data.get("future_ideas", ""),
                     data.get("recommendation", ""),
-                    future_help,
+                    data.get("future_help", ""),
+                    free_feedback,
                 ],
             )
         except Exception:

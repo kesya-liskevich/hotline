@@ -104,6 +104,25 @@ def workshops_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def feedback_role_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Участник соревнований/мастер-классов",
+                    callback_data="feedback:role:participant",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Зритель",
+                    callback_data="feedback:role:spectator",
+                ),
+            ],
+        ]
+    )
+
+
 def workshop_attendance_keyboard(workshop_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

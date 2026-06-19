@@ -347,10 +347,10 @@ class GoogleSheetsClient:
         role: str,
         answers: list[str],
     ) -> None:
-        padded_answers = [*answers, *[""] * 6][:6]
+        padded_answers = [*answers, *[""] * 7][:7]
         self.service.spreadsheets().values().append(
             spreadsheetId=self.spreadsheet_id,
-            range="feedback!A:J",
+            range="feedback!A:K",
             valueInputOption="USER_ENTERED",
             insertDataOption="INSERT_ROWS",
             body={
@@ -475,7 +475,7 @@ class GoogleSheetsClient:
             ).execute()
         self.service.spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id,
-            range="feedback!A1:J1",
+            range="feedback!A1:K1",
             valueInputOption="RAW",
             body={
                 "values": [[
@@ -488,6 +488,7 @@ class GoogleSheetsClient:
                     "future_ideas",
                     "recommendation",
                     "future_help",
+                    "free_feedback",
                     "submitted_at",
                 ]]
             },

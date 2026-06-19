@@ -81,6 +81,16 @@ class KevinTrainingForm(StatesGroup):
     phone = State()
 
 
+class FeedbackForm(StatesGroup):
+    role = State()
+    weekly_format = State()
+    workshops_kevin_lee = State()
+    memorable_moment = State()
+    future_ideas = State()
+    recommendation = State()
+    future_help = State()
+
+
 EDIT_PROMPTS = {
     "full_name": ("Введите ФИО полностью: имя, фамилия, отчество", CompetitionForm.full_name),
     "phone": ("Введите телефон в формате +7XXXXXXXXXX", CompetitionForm.phone),
@@ -127,6 +137,58 @@ KEVIN_TRAINING_TEXT = (
     "Выберите вариант участия:\n"
     "🔥 Розыгрыш бесплатного занятия (3 места)\n"
     "🎟 Участие на платной основе (4500 ₽)"
+)
+FEEDBACK_INTRO_TEXT = (
+    "👁 Спасибо, что были частью фестиваля «Горячая линия»!\n\n"
+    "Нам очень важно узнать ваше мнение. Ответы помогут сделать фестиваль лучше "
+    "в следующем году.\n\n"
+    "Для начала напишите, пожалуйста:\n\n"
+    "Вы участник соревнований/мастер-классов или зритель?"
+)
+FEEDBACK_QUESTIONS = [
+    (
+        "weekly_format",
+        "1. Как вам формат недельного фестиваля?\n"
+        "Что понравилось в программе, а что хотелось бы изменить? Было ли "
+        "мероприятий слишком много, слишком мало или в самый раз?",
+    ),
+    (
+        "workshops_kevin_lee",
+        "2. Если вы посещали тренировки или мастер-классы Kevin Lee — поделитесь "
+        "впечатлениями.\n"
+        "Что особенно понравилось? Что можно улучшить в организации или самом "
+        "формате занятий?\n\n"
+        "Если не участвовали — напишите «не участвовал».",
+    ),
+    (
+        "memorable_moment",
+        "3. Что вам больше всего запомнилось на фестивале?\n"
+        "Любой момент, событие, активность или атмосфера.",
+    ),
+    (
+        "future_ideas",
+        "4. Кого или что вы хотели бы увидеть на «Горячей линии» в будущем?\n"
+        "Приглашённые гости, дисциплины, активности, лекции, мастер-классы, "
+        "форматы соревнований или что-то ещё.",
+    ),
+    (
+        "recommendation",
+        "5. Порекомендовали бы вы фестиваль своим друзьям, которые не катаются "
+        "на роликах?\n"
+        "Почему да или почему нет? Что нужно добавить или изменить, чтобы вы "
+        "точно рекомендовали фестиваль другим людям?",
+    ),
+    (
+        "future_help",
+        "6. Хотели бы вы помочь развитию фестиваля в будущем?\n"
+        "Например: волонтёрство, партнёрство, информационная поддержка, помощь "
+        "в организации, проведение активностей или что-то другое.",
+    ),
+]
+FEEDBACK_FINAL_TEXT = (
+    "❤️ Спасибо за обратную связь!\n\n"
+    "Мы внимательно прочитаем каждый ответ и постараемся учесть ваши идеи при "
+    "подготовке следующей «Горячей линии»."
 )
 CLOSED_WORKSHOP_IDS = {"tue_ofp", "wed_video", "fri_trainers"}
 CLOSED_WORKSHOP_MESSAGE = "К сожалению, регистрация закрыта, места закончились."
@@ -288,6 +350,79 @@ def build_router(
     async def program(callback: CallbackQuery) -> None:
         await callback.message.answer(program_text(), reply_markup=main_menu())
         await callback.answer()
+
+    @router.callback_query(F.data == "feedback:start")
+    async def feedback_start(callback: CallbackQuery, state: FSMContext) -> None:
+        await state.clear()
+        await state.update_data(
+            telegram_id=callback.from_user.id,
+            telegram_username=callback.from_user.username,
+        )
+        await callback.message.answer(FEEDBACK_INTRO_TEXT)
+        await state.set_state(FeedbackForm.role)
+        await callback.answer()
+
+    @router.message(FeedbackForm.role)
+    async def feedback_role(message: Message, state: FSMContext) -> None:
+        await state.update_data(role=_message_text(message))
+        await message.answer(_feedback_question_text("weekly_format"))
+        await state.set_state(FeedbackForm.weekly_format)
+
+    @router.message(FeedbackForm.weekly_format)
+    async def feedback_weekly_format(message: Message, state: FSMContext) -> None:
+        await state.update_data(weekly_format=_message_text(message))
+        await message.answer(_feedback_question_text("workshops_kevin_lee"))
+        await state.set_state(FeedbackForm.workshops_kevin_lee)
+
+    @router.message(FeedbackForm.workshops_kevin_lee)
+    async def feedback_workshops_kevin_lee(message: Message, state: FSMContext) -> None:
+        await state.update_data(workshops_kevin_lee=_message_text(message))
+        await message.answer(_feedback_question_text("memorable_moment"))
+        await state.set_state(FeedbackForm.memorable_moment)
+
+    @router.message(FeedbackForm.memorable_moment)
+    async def feedback_memorable_moment(message: Message, state: FSMContext) -> None:
+        await state.update_data(memorable_moment=_message_text(message))
+        await message.answer(_feedback_question_text("future_ideas"))
+        await state.set_state(FeedbackForm.future_ideas)
+
+    @router.message(FeedbackForm.future_ideas)
+    async def feedback_future_ideas(message: Message, state: FSMContext) -> None:
+        await state.update_data(future_ideas=_message_text(message))
+        await message.answer(_feedback_question_text("recommendation"))
+        await state.set_state(FeedbackForm.recommendation)
+
+    @router.message(FeedbackForm.recommendation)
+    async def feedback_recommendation(message: Message, state: FSMContext) -> None:
+        await state.update_data(recommendation=_message_text(message))
+        await message.answer(_feedback_question_text("future_help"))
+        await state.set_state(FeedbackForm.future_help)
+
+    @router.message(FeedbackForm.future_help)
+    async def feedback_future_help(message: Message, state: FSMContext) -> None:
+        future_help = _message_text(message)
+        await state.update_data(future_help=future_help)
+        data = await state.get_data()
+        try:
+            sheets.append_feedback(
+                telegram_id=message.from_user.id,
+                telegram_username=message.from_user.username,
+                role=data.get("role", ""),
+                answers=[
+                    data.get("weekly_format", ""),
+                    data.get("workshops_kevin_lee", ""),
+                    data.get("memorable_moment", ""),
+                    data.get("future_ideas", ""),
+                    data.get("recommendation", ""),
+                    future_help,
+                ],
+            )
+        except Exception:
+            logging.exception("Could not save feedback response")
+            await message.answer("Не удалось сохранить ответ. Пожалуйста, попробуйте ещё раз.")
+            return
+        await state.clear()
+        await message.answer(FEEDBACK_FINAL_TEXT, reply_markup=workshops_keyboard())
 
     @router.callback_query(F.data.startswith("workshop:attendance:"))
     async def workshop_attendance(callback: CallbackQuery) -> None:
@@ -1134,6 +1269,17 @@ def _age_on(birthdate: date, target_date: date) -> int:
 
 def _is_valid_phone(value: str) -> bool:
     return re.fullmatch(r"\+7\d{10}", value.strip()) is not None
+
+
+def _message_text(message: Message) -> str:
+    return (message.text or message.caption or "").strip()
+
+
+def _feedback_question_text(question_id: str) -> str:
+    for current_id, text in FEEDBACK_QUESTIONS:
+        if current_id == question_id:
+            return text
+    raise ValueError(f"Unknown feedback question: {question_id}")
 
 
 def _state_age(data: dict) -> int | None:

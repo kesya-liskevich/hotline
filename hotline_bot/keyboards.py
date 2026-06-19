@@ -13,6 +13,7 @@ def main_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Запись на мастер-класс/лекцию", callback_data="workshop:start")],
             [InlineKeyboardButton(text="Тренировка с Kevin Lee", callback_data="kevin:start")],
             [InlineKeyboardButton(text="Программа и расписание", callback_data="program")],
+            [InlineKeyboardButton(text="Обратная связь", callback_data="feedback:start")],
         ]
     )
 

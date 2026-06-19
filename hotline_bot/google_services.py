@@ -55,6 +55,15 @@ class SheetsClient(Protocol):
     ) -> None:
         ...
 
+    def append_feedback(
+        self,
+        telegram_id: int,
+        telegram_username: str | None,
+        role: str,
+        answers: list[str],
+    ) -> None:
+        ...
+
     def kevin_lottery_rows(self) -> list[list[str]]:
         ...
 
@@ -124,6 +133,15 @@ class NullSheetsClient:
 
     def kevin_lottery_rows(self) -> list[list[str]]:
         return []
+
+    def append_feedback(
+        self,
+        telegram_id: int,
+        telegram_username: str | None,
+        role: str,
+        answers: list[str],
+    ) -> None:
+        return None
 
     def update_registration(self, registration: Registration) -> None:
         return None
@@ -322,6 +340,30 @@ class GoogleSheetsClient:
     def kevin_lottery_rows(self) -> list[list[str]]:
         return self._read_rows("kevin_lee_lottery!A2:K")
 
+    def append_feedback(
+        self,
+        telegram_id: int,
+        telegram_username: str | None,
+        role: str,
+        answers: list[str],
+    ) -> None:
+        padded_answers = [*answers, *[""] * 6][:6]
+        self.service.spreadsheets().values().append(
+            spreadsheetId=self.spreadsheet_id,
+            range="feedback!A:J",
+            valueInputOption="USER_ENTERED",
+            insertDataOption="INSERT_ROWS",
+            body={
+                "values": [[
+                    str(telegram_id),
+                    telegram_username or "",
+                    role,
+                    *padded_answers,
+                    datetime.now(timezone.utc).isoformat(),
+                ]]
+            },
+        ).execute()
+
     def update_registration(self, registration: Registration) -> None:
         # Append-only history is safer for the first MVP. The latest row by
         # registration_id/status is the source of truth for manual reporting.
@@ -356,6 +398,7 @@ class GoogleSheetsClient:
                 "workshop_attendance",
                 "kevin_lee_beginner_attendance",
                 "kevin_lee_pro_attendance",
+                "feedback",
             )
             if title not in existing_titles
         ]
@@ -430,6 +473,25 @@ class GoogleSheetsClient:
                     ]]
                 },
             ).execute()
+        self.service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range="feedback!A1:J1",
+            valueInputOption="RAW",
+            body={
+                "values": [[
+                    "telegram_id",
+                    "telegram_username",
+                    "role",
+                    "weekly_format",
+                    "workshops_kevin_lee",
+                    "memorable_moment",
+                    "future_ideas",
+                    "recommendation",
+                    "future_help",
+                    "submitted_at",
+                ]]
+            },
+        ).execute()
         self._migrate_legacy_kevin_lottery_rows()
 
     def _migrate_legacy_kevin_lottery_rows(self) -> None:
